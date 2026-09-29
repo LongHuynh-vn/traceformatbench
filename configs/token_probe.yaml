@@ -1,0 +1,19 @@
+# Exploratory measurement to choose window parameters for spec 003.
+# Not a benchmark result. Run: uv run python scripts/measure_tokens.py configs/token_probe.yaml
+seed: 20260929
+ollama_url: http://localhost:11434
+models:
+  - qwen3.5:9b
+  - gemma4:12b
+num_ctx: 32768
+data_dir: data/raw/rcaeval
+cases:
+  - re2ob_checkoutservice_cpu_1
+  - re2tt_ts-auth-service_cpu_1
+formats: [F0, F1]
+window_sizes: [1, 5, 10, 20]
+windows_per_size: 5
+# Texts longer than this are not sent to the model: JSON with hex IDs is well under
+# 5 characters per token, so 5 * num_ctx characters is certainly over num_ctx tokens.
+skip_if_chars_over: 163840
+output: results/token_probe/tokens.jsonl
