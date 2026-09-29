@@ -17,3 +17,6 @@ data/raw/
 .DS_Store
 .idea/
 .vscode/
+
+# Probe console logs (raw records live in tokens.jsonl)
+results/token_probe/run.log
