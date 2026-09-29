@@ -29,8 +29,9 @@ benchmark needs for all traced cases. This is the input layer for every serializ
    downloads only `traces.parquet` and `inject_time.txt` per case (not metrics or logs).
    Skips cases already present. Idempotent.
 2. `data/trace.py` with frozen dataclasses:
-   - `Span`: span_id, parent_id (None for root), trace_id, service, operation, method,
-     start_us (int), duration_us (int), status_code (int | None).
+   - `Span`: span_id, parent_id (None for root), trace_id, service, operation,
+     method (str | None; missing for every Train Ticket span), start_us (int), duration_us (int),
+     status_code (int | None).
    - `Trace`: trace_id, spans (sorted by start_us, then span_id), `root` (Span | None),
      `children(span_id) -> list[Span]`, `orphan_span_ids` (spans whose parent is not in the trace),
      `start_us`, `end_us`, `services` (sorted unique).
@@ -41,7 +42,7 @@ benchmark needs for all traced cases. This is the input layer for every serializ
 - Trace with more than one root: keep all spans; `root` is the earliest root; record the others
   as extra roots (field `extra_root_ids`).
 - Empty string parentSpanID is treated the same as missing.
-- Missing statusCode becomes None, never 0.
+- Missing statusCode becomes None, never 0. Missing methodName becomes None, never "" or "<NA>".
 - A case without `traces.parquet` raises a clear error naming the case.
 
 ## Tests that must pass
