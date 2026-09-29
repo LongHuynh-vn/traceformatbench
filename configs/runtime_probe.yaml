@@ -1,0 +1,12 @@
+# Exploratory runtime measurement, not a benchmark result (spec 004).
+# Run: uv run python scripts/runtime_probe.py configs/runtime_probe.yaml
+seed: 20260929
+ollama_url: http://localhost:11434
+models: [qwen3.5:9b, gemma4:12b]
+num_ctx: 32768
+num_predict: 256
+temperature: 0
+windows_config: configs/windows_v1.yaml
+cases: [re2ob_checkoutservice_cpu_1, re2tt_ts-auth-service_cpu_1]
+formats: [F0, F1]
+output: results/runtime_probe/calls.jsonl
