@@ -155,12 +155,12 @@ def trace_quality(
         ">1": int((n_roots > 1).sum()),
     }
 
-    span_ids_by_trace = spans.groupby(TRACE_ID_COL, sort=False)[SPAN_ID_COL].agg(set)
-    known = spans[TRACE_ID_COL].map(span_ids_by_trace)
-    orphan = [
-        (not r) and (p not in ids)
-        for r, p, ids in zip(is_root, spans[PARENT_ID_COL], known, strict=True)
-    ]
+    # A span is an orphan if it is not a root and its (traceID, parentSpanID) pair
+    # does not match any (traceID, spanID) pair. Vectorized: per-span sets of span IDs
+    # blow up on large traces (Train Ticket traces reach thousands of spans).
+    own = pd.MultiIndex.from_arrays([spans[TRACE_ID_COL], spans[SPAN_ID_COL]])
+    parent = pd.MultiIndex.from_arrays([spans[TRACE_ID_COL], spans[PARENT_ID_COL]])
+    orphan = ~is_root.to_numpy(dtype=bool) & ~parent.isin(own)
     n_traces_with_orphans = int(spans.loc[orphan, TRACE_ID_COL].nunique())
 
     trace_start_s = per_trace[START_US_COL].min() // 1_000_000

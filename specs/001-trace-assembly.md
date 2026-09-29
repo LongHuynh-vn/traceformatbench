@@ -6,14 +6,18 @@ Status: DRAFT written by Claude. The student reviews and edits this file before 
 Turn one RCAEval case into a list of in-memory trace trees, and download only the files the
 benchmark needs for all traced cases. This is the input layer for every serializer (F0-F5).
 
-## Known facts about the data (from `scripts/inspect_case.py` on re2ob_checkoutservice_cpu_1)
+## Known facts about the data (from `scripts/inspect_case.py` on re2ob_checkoutservice_cpu_1 and re2tt_ts-auth-service_cpu_1)
 - One row per span. Columns: time, traceID, spanID, serviceName, methodName, operationName,
   parentSpanID, startTimeMillis, startTime, duration, statusCode.
-- `startTime` is in microseconds (`startTime // 1000 == startTimeMillis`). `duration` is assumed
-  to be microseconds too; confirm on one Train Ticket case before relying on it.
+- Same columns and dtypes in both systems.
+- `startTime` is in microseconds (`startTime // 1000 == startTimeMillis` in both cases).
+  `duration` is in the same unit (trace wall time computed from startTime + duration is consistent).
 - Root span: `parentSpanID` is missing. Almost every trace has exactly one root; a few have none
   (their spans point to a parent that is not in the data).
-- `statusCode` is 0 or missing in this case. Do not assume error codes exist.
+- `statusCode` is 0 or missing in the OB case and missing for every span in the TT case.
+  Do not assume error codes exist.
+- Train Ticket traces are heavy-tailed: median 25 spans, p95 435, max 2166 spans per trace.
+  Code must not build per-span copies of whole traces (quadratic memory).
 - Traced cases: RE2-OB, RE2-TT, RE3-OB, RE3-TT (`has_traces` in `cases.parquet`).
 
 ## Inputs
