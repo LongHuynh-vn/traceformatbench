@@ -1,6 +1,7 @@
 # Fixed trace windows for all experiments (spec 003).
 # Run: uv run python scripts/build_windows.py configs/windows_v1.yaml
-# t1_windows_per_phase and t2_windows are provisional; final values go in PREREGISTRATION.md.
+# Window counts chosen on 2026-09-29 from the runtime probe (results/runtime_probe/estimate.csv):
+# 2 T1 windows per phase + 3 T2 windows = ~39.7 h main grid with F1 time as the bound for F2-F5.
 seed: 20260929
 data_dir: data/raw/rcaeval
 datasets: [RE2-OB, RE2-TT, RE3-OB, RE3-TT]
@@ -8,7 +9,7 @@ repetitions: [1]            # 1 case per (fault, service) pair: 78 cases; null =
 window_size: 5
 max_trace_chars: 10000
 guard_seconds: 60
-t1_windows_per_phase: 3     # T1: this many pre AND this many post windows per case (balanced)
+t1_windows_per_phase: 2     # T1: this many pre AND this many post windows per case (balanced)
 t2_windows: 3               # T2: this many post windows per case
 output_windows: data/windows/windows_v1.jsonl
 output_stats: results/window_stats/windows_v1.csv

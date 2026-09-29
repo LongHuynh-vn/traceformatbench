@@ -103,5 +103,6 @@ the data (selection bias).
 2. Guard band: keep `guard_seconds: 60`.
 3. Windows per case: keep `t1_windows_per_phase: 3` and `t2_windows: 3` as provisional config values.
    Final counts are chosen after a small runtime test and fixed in PREREGISTRATION.md.
+   Update 2026-09-29: chosen from the runtime probe (spec 004): `t1_windows_per_phase: 2`, `t2_windows: 3`.
 4. T2: primary analysis on all T2 windows, plus a pre-registered secondary analysis on informative
    windows only. This spec only needs to produce the `informative` flag; the analysis itself is out of scope.

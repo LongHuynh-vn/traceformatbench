@@ -102,3 +102,16 @@ and turn that into a runtime estimate for the main grid under different window c
 ## Decisions on open questions (student, 2026-09-29)
 1. Keep `num_predict: 256`.
 2. Keep the placeholder prompt as written; it does not fix the wording of the real T1/T2 prompts.
+
+## Outcome (2026-09-29)
+- 74/74 calls `ok`: no truncation, no thinking leak, no cached prefix, every `done_reason` was `stop`.
+  Largest prompt: 16,511 tokens. Client overhead (wall minus total) at most 0.02 s.
+- Prefill dominates call time: qwen3.5:9b ~380-390 tokens/s, gemma4:12b ~220-240 tokens/s;
+  outputs are ~20 tokens (decode ~40 and ~25 tokens/s).
+- Median call time (s), F0 / F1: qwen OB 31.9 / 17.3, qwen TT 19.1 / 9.7, gemma OB 59.0 / 30.6, gemma TT 34.3 / 17.4.
+- Main-grid estimate with F1 time as the bound for F2-F5: 3/3 windows = ~51.0 h (over budget);
+  2/3 = ~39.7 h; 2/4 and 3/2 = ~45.3 h. With F0 time for all six formats, only up to 5 windows per case fit in 48 h.
+- Decision (student): `t1_windows_per_phase: 2`, `t2_windows: 3` (6,552 calls, ~8 h margin in the budget).
+- Note for spec 005: all 37 gemma4:12b answers were wrapped in a ```json code fence, qwen3.5:9b answers were bare JSON.
+  The answer parser or Ollama structured output (`format`) must handle this.
+- Raw calls with full prompts stay local (git-ignored); `calls_no_prompts.jsonl` is committed.
