@@ -63,6 +63,29 @@ def download_case(case: str, dest: str | Path) -> Path:
     return case_dir
 
 
+def download_traced_cases(cases: list[str], dest: str | Path) -> list[Path]:
+    """Download only trace and injection-time files, skipping files already present."""
+    from huggingface_hub import hf_hub_download
+
+    case_dirs = []
+    for case in cases:
+        case_dir = Path(dest) / case
+        for name in ("traces.parquet", "inject_time.txt"):
+            path = case_dir / name
+            if path.is_file():
+                continue
+            hf_hub_download(
+                repo_id=HF_REPO_ID,
+                repo_type="dataset",
+                filename=f"{case}/{name}",
+                local_dir=str(dest),
+            )
+            if not path.is_file():
+                raise FileNotFoundError(f"Case {case!r}: {name} was not found after download.")
+        case_dirs.append(case_dir)
+    return case_dirs
+
+
 def find_traces_file(case_dir: str | Path) -> Path | None:
     """Return the trace file of a case (Parquet preferred), or None if there is none."""
     for name in TRACE_FILES:
