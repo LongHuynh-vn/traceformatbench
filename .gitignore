@@ -20,3 +20,6 @@ data/raw/
 
 # Probe console logs (raw records live in tokens.jsonl)
 results/token_probe/run.log
+
+# Runtime probe raw calls contain full prompts (serialized RCAEval traces); calls_no_prompts.jsonl is committed instead
+results/runtime_probe/calls.jsonl
