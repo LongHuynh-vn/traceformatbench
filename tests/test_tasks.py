@@ -10,13 +10,85 @@ from traceformatbench.tasks.prompts import (
     PROMPT_VERSION,
     SYSTEM_PROMPT,
     build_t1_prompt,
+    build_t1p_prompt,
     build_t2_prompt,
     case_candidates,
 )
-from traceformatbench.tasks.schemas import t1_schema, t2_schema
+from traceformatbench.tasks.schemas import t1_schema, t1p_schema, t2_schema
 from traceformatbench.tasks.scoring import metrics, parse_answer, score_record
 
 CANDIDATES = ["a", "b", "c", "d"]
+
+
+def test_exact_t1p_prompt_and_schema():
+    assert build_t1p_prompt("A TEXT", "B TEXT", 5) == (
+        "Below are two windows of 5 traces each, recorded in the same microservice system.\n"
+        "At some point, a fault was injected into one service of this system. "
+        "One window was recorded before the fault injection and the other after it.\n\n"
+        "<window_a>\nA TEXT\n</window_a>\n\n"
+        "<window_b>\nB TEXT\n</window_b>\n\n"
+        "Which window was recorded after the fault injection?\n"
+        'Answer with {"after": "A"} or {"after": "B"}.'
+    )
+    expected = {
+        "type": "object",
+        "properties": {"after": {"type": "string", "enum": ["A", "B"]}},
+        "required": ["after"],
+        "additionalProperties": False,
+    }
+    assert t1p_schema() == expected
+    t1p_schema()["properties"]["after"]["enum"].clear()
+    assert t1p_schema() == expected
+
+
+@pytest.mark.parametrize(
+    "content, status, value, fenced",
+    [
+        (' {"after": "A"} \n', "ok", "A", False),
+        ('{"after": "B"}', "ok", "B", False),
+        ('{"after": "a"}', "schema_violation", None, False),
+        ('{"after": "A", "extra": 1}', "schema_violation", None, False),
+        ('{"phase": "pre"}', "schema_violation", None, False),
+        ('{"after": ["A"]}', "schema_violation", None, False),
+        ("{}", "schema_violation", None, False),
+        ("garbage", "invalid_json", None, False),
+        ('```json\n{"after": "A"}\n```', "ok", "A", True),
+        ('```\n{"after": "B"}\n```', "ok", "B", True),
+        ('```json\n{"after": "A"}\n```\nextra', "invalid_json", None, False),
+    ],
+)
+def test_t1p_strict_parsing(content, status, value, fenced):
+    parsed = parse_answer("T1P", content, [])
+    assert (parsed.status, parsed.value, parsed.fenced) == (status, value, fenced)
+
+
+def test_hand_computed_t1p_metrics():
+    records = [
+        _record("T1P", label="A", content='{"after":"A"}', informative=None),
+        _record("T1P", label="B", content='{"after":"A"}', informative=None),
+        _record("T1P", label="B", content='```json\n{"after":"B"}\n```', informative=None),
+        _record("T1P", label="A", content="invalid", informative=None),
+        _record("T1P", label="A", content='{"after":"A"}', status="truncated", informative=None),
+        _record(
+            "T1P", label="A", content='{"after":"A"}', status="thinking_leak", informative=None
+        ),
+    ]
+    scored = [score_record(record) for record in records]
+    assert [r["correct"] for r in scored] == [1, 0, 1, 0, 0, 0]
+    result = metrics(scored)
+    assert len(result) == 2
+    for _, row in result.iterrows():
+        assert row["n"] == 6
+        assert row["accuracy"] == pytest.approx(2 / 6)
+        assert row["a_rate"] == pytest.approx(2 / 3)
+        assert row["invalid_rate"] == row["fence_rate"] == pytest.approx(1 / 6)
+        assert row["n_truncated"] == row["n_thinking_leak"] == 1
+        assert row["truncated_rate"] == row["thinking_leak_rate"] == pytest.approx(1 / 6)
+        assert pd.isna(row["precision_post"]) and pd.isna(row["acc_at_1"])
+    invalid = score_record(_record("T1P", label="A", content="invalid", informative=None))
+    row = metrics([invalid]).iloc[0]
+    assert row["accuracy"] == 0 and row["invalid_rate"] == 1
+    assert pd.isna(row["a_rate"])
 
 
 def test_exact_prompt_strings():

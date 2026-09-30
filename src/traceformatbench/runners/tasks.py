@@ -20,14 +20,17 @@ from traceformatbench.data.rcaeval import INDEX_FILE
 from traceformatbench.data.trace import load_case_traces
 from traceformatbench.data.windows import WindowConfig, build_case_windows, load_window_config
 from traceformatbench.runners.ollama import ChatResult, OllamaClient
+from traceformatbench.serializers import SERIALIZERS
+from traceformatbench.tasks.pairs import align_pair_times
 from traceformatbench.tasks.prompts import (
     PROMPT_VERSION,
     SYSTEM_PROMPT,
     build_t1_prompt,
+    build_t1p_prompt,
     build_t2_prompt,
     case_candidates,
 )
-from traceformatbench.tasks.schemas import t1_schema, t2_schema
+from traceformatbench.tasks.schemas import t1_schema, t1p_schema, t2_schema
 
 
 @dataclass(frozen=True)
@@ -52,8 +55,8 @@ class TaskConfig:
                 raise ValueError(f"{name} must be non-empty and contain no duplicates.")
         if not set(self.formats) <= {"F0", "F1"}:
             raise ValueError("Spec 005 supports only F0 and F1.")
-        if not set(self.tasks) <= {"T1", "T2"}:
-            raise ValueError("Spec 005 supports only T1 and T2.")
+        if not set(self.tasks) <= {"T1", "T1P", "T2"}:
+            raise ValueError("Specs 005/005b support only T1, T1P and T2.")
         if self.prompt_version != PROMPT_VERSION:
             raise ValueError(f"Unsupported prompt_version {self.prompt_version!r}.")
         if self.num_ctx <= 0 or self.num_predict <= 0:
@@ -110,12 +113,21 @@ def load_task_windows(config: TaskConfig, windows_config: WindowConfig) -> list[
         case_windows, _ = build_case_windows(
             metadata, traces, windows_config, random.Random(f"{windows_config.seed}:{case}")
         )
-        if any(not any(w["task"] == task for w in case_windows) for task in config.tasks):
+        if "T1P" in config.tasks:
+            pair_t1_windows(case_windows, case)
+        if any(
+            not any(w["task"] == ("T1" if task == "T1P" else task) for w in case_windows)
+            for task in config.tasks
+        ):
             raise ValueError(f"Case {case!r} produced no windows for a requested task.")
-        windows.extend(
-            {**window, "candidates": candidates}
-            for window in serialize_windows(case_windows, traces, config.formats)
-        )
+        serialized = serialize_windows(case_windows, traces, config.formats)
+        if "T1P" in config.tasks:
+            by_id = {trace.trace_id: trace for trace in traces}
+            for window in serialized:
+                if window["task"] == "T1":
+                    window["traces"] = [by_id[trace_id] for trace_id in window["trace_ids"]]
+            del by_id
+        windows.extend({**window, "candidates": candidates} for window in serialized)
         del traces
     errors = []
     if missing_root:
@@ -139,22 +151,74 @@ def prompt_sha256(system: str, user: str) -> str:
     ).hexdigest()
 
 
+def pair_t1_windows(windows: Sequence[dict], case: str) -> list[tuple[dict, dict]]:
+    """Pair existing T1 pre/post windows by index; omit incomplete pairs."""
+    phases = {"pre": {}, "post": {}}
+    for window in windows:
+        if window["case"] == case and window["task"] == "T1":
+            phase = phases[window["phase"]]
+            index = window["window_index"]
+            assert index not in phase, f"Duplicate T1 {window['phase']} window {index} in {case!r}."
+            phase[index] = window
+    pairs = [
+        (phases["pre"][index], phases["post"][index])
+        for index in sorted(phases["pre"].keys() & phases["post"].keys())
+    ]
+    if not pairs:
+        raise ValueError(f"Case {case!r} produced no complete T1P pairs.")
+    return pairs
+
+
 def build_call_list(windows: Sequence[dict], config: TaskConfig) -> list[dict]:
     calls = []
     for model in config.models:
         for case in config.cases:
             for task in config.tasks:
-                for window in windows:
-                    if window["case"] != case or window["task"] != task:
-                        continue
-                    for fmt in config.formats:
-                        text = window["texts"][fmt]
-                        n = len(window["trace_ids"])
-                        user = (
-                            build_t1_prompt(text, n)
-                            if task == "T1"
-                            else build_t2_prompt(text, n, window["candidates"])
+                task_windows = (
+                    pair_t1_windows(windows, case)
+                    if task == "T1P"
+                    else [
+                        (window, None)
+                        for window in windows
+                        if window["case"] == case and window["task"] == task
+                    ]
+                )
+                for window, post in task_windows:
+                    if task == "T1P":
+                        aligned_pre, aligned_post = align_pair_times(
+                            window["traces"], post["traces"]
                         )
+                    for fmt in config.formats:
+                        n = len(window["trace_ids"])
+                        if task == "T1P":
+                            assert window["case"] == post["case"] == case
+                            assert window["window_index"] == post["window_index"]
+                            assert fmt in window["texts"] and fmt in post["texts"]
+                            assert n == len(post["trace_ids"])
+                            a, b = (
+                                (window, post)
+                                if window["window_index"] % 2 == 0
+                                else (post, window)
+                            )
+                            aligned_a, aligned_b = (
+                                (aligned_pre, aligned_post)
+                                if window["window_index"] % 2 == 0
+                                else (aligned_post, aligned_pre)
+                            )
+                            user = build_t1p_prompt(
+                                SERIALIZERS[fmt](aligned_a), SERIALIZERS[fmt](aligned_b), n
+                            )
+                            schema = t1p_schema()
+                        else:
+                            text = window["texts"][fmt]
+                            user = (
+                                build_t1_prompt(text, n)
+                                if task == "T1"
+                                else build_t2_prompt(text, n, window["candidates"])
+                            )
+                            schema = (
+                                t1_schema() if task == "T1" else t2_schema(window["candidates"])
+                            )
                         call = {
                             key: window[key]
                             for key in (
@@ -181,10 +245,16 @@ def build_call_list(windows: Sequence[dict], config: TaskConfig) -> list[dict]:
                             user_prompt=user,
                             prompt_sha256=prompt_sha256(SYSTEM_PROMPT, user),
                             prompt_chars=len(SYSTEM_PROMPT) + len(user),
-                            output_schema=t1_schema()
-                            if task == "T1"
-                            else t2_schema(window["candidates"]),
+                            output_schema=schema,
                         )
+                        if task == "T1P":
+                            call.update(
+                                task="T1P",
+                                label="B" if a["phase"] == "pre" else "A",
+                                a_phase=a["phase"],
+                                informative=None,
+                                time_aligned=True,
+                            )
                         if task == "T2":
                             call["candidates"] = window["candidates"]
                         calls.append(call)

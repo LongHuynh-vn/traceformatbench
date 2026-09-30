@@ -20,7 +20,7 @@ class ParsedAnswer:
 
 def parse_answer(task: str, content: str, candidates: Sequence[str]) -> ParsedAnswer:
     """Strip one whole Markdown fence; perform no other JSON repair."""
-    if task not in {"T1", "T2"}:
+    if task not in {"T1", "T1P", "T2"}:
         raise ValueError(f"Unknown task {task!r}.")
     text = content.strip()
     fence = re.fullmatch(r"```[^\n`]*\n(.*?)\n```", text, flags=re.DOTALL)
@@ -31,12 +31,14 @@ def parse_answer(task: str, content: str, candidates: Sequence[str]) -> ParsedAn
         answer = json.loads(text)
     except json.JSONDecodeError:
         return ParsedAnswer("invalid_json", fenced=fenced)
-    key = "phase" if task == "T1" else "ranking"
+    key = {"T1": "phase", "T1P": "after", "T2": "ranking"}[task]
     if not isinstance(answer, dict) or set(answer) != {key}:
         return ParsedAnswer("schema_violation", fenced=fenced)
     value = answer[key]
     if task == "T1":
         valid = isinstance(value, str) and value in {"pre", "post"}
+    elif task == "T1P":
+        valid = isinstance(value, str) and value in {"A", "B"}
     else:
         valid = (
             isinstance(value, list)
@@ -63,7 +65,7 @@ def score_record(call_record: Mapping) -> dict:
         "fenced": parsed.fenced,
         "answer": parsed.value,
     }
-    if task == "T1":
+    if task in {"T1", "T1P"}:
         record["correct"] = int(ok and parsed.value == call_record["label"])
     else:
         n = len(candidates)
@@ -96,6 +98,7 @@ METRIC_COLUMNS = [
     "recall_post",
     "f1_post",
     "post_rate",
+    "a_rate",
     "acc_at_1",
     "acc_at_3",
     "chance_at_1",
@@ -147,6 +150,14 @@ def metrics(scored_records: Sequence[Mapping]) -> pd.DataFrame:
                     if precision + recall
                     else 0.0,
                     post_rate=len(positive) / n,
+                )
+            elif row["task"] == "T1P":
+                valid = [r for r in group if r["status"] == r["parse_status"] == "ok"]
+                row.update(
+                    accuracy=sum(r["correct"] for r in group) / n,
+                    a_rate=sum(r["answer"] == "A" for r in valid) / len(valid)
+                    if valid
+                    else float("nan"),
                 )
             else:
                 informative = [r for r in group if r["informative"] == True]  # noqa: E712
