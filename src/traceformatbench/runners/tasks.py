@@ -103,23 +103,25 @@ def load_task_windows(config: TaskConfig, windows_config: WindowConfig) -> list[
         metadata = matches.iloc[0].to_dict()
         traces = load_case_traces(data_dir / case)
         candidates = case_candidates(traces)
-        if metadata["root_cause_service"] not in candidates:
+        case_windows, _ = build_case_windows(
+            metadata, traces, windows_config, random.Random(f"{windows_config.seed}:{case}")
+        )
+        has_t2 = any(window["task"] == "T2" for window in case_windows)
+        if has_t2 and metadata["root_cause_service"] not in candidates:
             missing_root.append(case)
-        if "T2" in config.tasks and len(candidates) < 3:
+        if has_t2 and len(candidates) < 3:
             too_few.append(case)
         if case in missing_root or case in too_few:
             del traces
             continue
-        case_windows, _ = build_case_windows(
-            metadata, traces, windows_config, random.Random(f"{windows_config.seed}:{case}")
-        )
         if "T1P" in config.tasks:
             pair_t1_windows(case_windows, case)
-        if any(
-            not any(w["task"] == ("T1" if task == "T1P" else task) for w in case_windows)
+        if not any(
+            w["task"] == ("T1" if task == "T1P" else task)
             for task in config.tasks
+            for w in case_windows
         ):
-            raise ValueError(f"Case {case!r} produced no windows for a requested task.")
+            raise ValueError(f"Case {case!r} produced no windows for any requested task.")
         serialized = serialize_windows(case_windows, traces, config.formats)
         if "T1P" in config.tasks:
             by_id = {trace.trace_id: trace for trace in traces}

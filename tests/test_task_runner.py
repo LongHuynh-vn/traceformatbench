@@ -346,6 +346,87 @@ def test_script_clear_errors_before_first_call(tmp_path, monkeypatch, fake_input
     assert client.calls == []
 
 
+@pytest.mark.parametrize("existing_output", [False, True])
+def test_dry_run_counts_full_call_list_without_client_or_output(
+    tmp_path, monkeypatch, capsys, existing_output
+):
+    monkeypatch.setattr(run_script, "load_window_config", lambda path: None)
+    monkeypatch.setattr(run_script, "load_task_windows", lambda *args: _windows())
+    config = _config(output=str(tmp_path / "results" / "calls.jsonl"))
+    output = Path(config.output)
+    if existing_output:
+        output.parent.mkdir()
+        output.write_bytes(b"Existing output must not be read, resumed or rewritten.\n")
+    config_path = tmp_path / "tasks.yaml"
+    config_path.write_text(yaml.safe_dump(config.__dict__))
+    client = Mock(side_effect=AssertionError("Dry run must not create an Ollama client."))
+    run = Mock(side_effect=AssertionError("Dry run must not start task execution."))
+    reader = Mock(side_effect=AssertionError("Dry run must not read output for resume."))
+    monkeypatch.setattr(run_script, "OllamaClient", client)
+    monkeypatch.setattr(run_script, "run_tasks", run)
+    monkeypatch.setattr(run_script, "read_records", reader)
+    monkeypatch.setattr(sys, "argv", ["run_tasks.py", str(config_path), "--dry-run"])
+    run_script.main()
+    lines = capsys.readouterr().out.splitlines()
+    for model in config.models:
+        for task, count in (("T1", 2), ("T2", 1)):
+            for fmt in config.formats:
+                assert f"{model} {task} {fmt}: {count}" in lines
+    assert "Total calls: 12" in lines
+    assert "T1: 0 cases skipped" in lines
+    assert "T2: 0 cases skipped" in lines
+    calls = runner.build_call_list(_windows(), config)
+    assert f"Largest prompt in characters: {max(c['prompt_chars'] for c in calls)}" in lines
+    client.assert_not_called()
+    run.assert_not_called()
+    reader.assert_not_called()
+    if existing_output:
+        assert output.read_bytes() == b"Existing output must not be read, resumed or rewritten.\n"
+    else:
+        assert not output.parent.exists()
+
+
+def test_dry_run_prints_skipped_cases_per_task_and_reasons(tmp_path, monkeypatch, capsys):
+    windows = [w for w in _windows("no-root") if w["task"] == "T1"]
+    for window in windows:
+        window["root_cause_service"] = "absent"
+    windows += [w for w in _windows("no-t1") if w["task"] == "T2"]
+    monkeypatch.setattr(run_script, "load_window_config", lambda path: None)
+    monkeypatch.setattr(run_script, "load_task_windows", lambda *args: windows)
+    config = _config(cases=["no-root", "no-t1"], output=str(tmp_path / "calls.jsonl"))
+    config_path = tmp_path / "tasks.yaml"
+    config_path.write_text(yaml.safe_dump(config.__dict__))
+    monkeypatch.setattr(sys, "argv", ["run_tasks.py", str(config_path), "--dry-run"])
+    client = Mock(side_effect=AssertionError("Dry run must not create an Ollama client."))
+    monkeypatch.setattr(run_script, "OllamaClient", client)
+    run_script.main()
+    lines = capsys.readouterr().out.splitlines()
+    assert "Total calls: 12" in lines
+    assert "T1: 1 cases skipped" in lines
+    assert "  no-t1: no T1 windows" in lines
+    assert "T2: 1 cases skipped" in lines
+    assert "  no-root: root cause not in traces" in lines
+    client.assert_not_called()
+    assert not Path(config.output).exists()
+
+
+def test_dry_run_checks_prompt_length_without_client_or_output(tmp_path, monkeypatch):
+    windows = _windows()
+    windows[-1]["texts"]["F1"] = "x" * 100_000
+    monkeypatch.setattr(run_script, "load_window_config", lambda path: None)
+    monkeypatch.setattr(run_script, "load_task_windows", lambda *args: windows)
+    config = _config(output=str(tmp_path / "calls.jsonl"))
+    config_path = tmp_path / "tasks.yaml"
+    config_path.write_text(yaml.safe_dump(config.__dict__))
+    monkeypatch.setattr(sys, "argv", ["run_tasks.py", str(config_path), "--dry-run"])
+    client = Mock(side_effect=AssertionError("Dry run must not create an Ollama client."))
+    monkeypatch.setattr(run_script, "OllamaClient", client)
+    with pytest.raises(SystemExit, match="may exceed num_ctx"):
+        run_script.main()
+    client.assert_not_called()
+    assert not Path(config.output).exists()
+
+
 def test_record_reader_rejects_interior_corruption_and_strict_incomplete_tail(tmp_path):
     path = tmp_path / "calls.jsonl"
     path.write_text("{}\nbroken\n{}\n")
@@ -644,6 +725,15 @@ def test_root_cause_mismatch_lists_all_cases_before_first_call(local_inputs, mon
     for meta in metadata:
         meta["root_cause_service"] = "absent"
     pd.DataFrame(metadata).to_parquet(Path(windows_config.data_dir) / "cases.parquet", index=False)
+    # The real builder omits T2 for an absent root cause; simulate invalid T2 windows.
+    monkeypatch.setattr(
+        runner,
+        "build_case_windows",
+        lambda meta, *args: (
+            [{**w, "root_cause_service": "absent"} for w in _windows(meta["case"])],
+            {},
+        ),
+    )
     monkeypatch.setattr(runner, "load_window_config", lambda path: windows_config)
     client = FakeClient()
     with pytest.raises(ValueError, match="Root-cause.*case.*other"):
@@ -669,16 +759,100 @@ def test_fewer_than_three_candidates_stops_before_first_call(local_inputs, monke
     assert client.calls == []
 
 
-def test_candidate_errors_are_listed_even_when_cases_have_no_eligible_windows(
-    local_inputs, monkeypatch
-):
+def test_no_eligible_windows_raises_without_global_candidate_errors(local_inputs, monkeypatch):
     metadata, traces, windows_config = local_inputs
     for meta in metadata:
         meta["root_cause_service"] = "absent"
     pd.DataFrame(metadata).to_parquet(Path(windows_config.data_dir) / "cases.parquet", index=False)
     monkeypatch.setattr(runner, "load_case_traces", lambda path: [traces[-1]])
-    with pytest.raises(ValueError, match="Root-cause.*case.*other.*T2 needs at least 3"):
+    with pytest.raises(ValueError, match="Case 'case'.*no windows for any requested task"):
         runner.load_task_windows(_config(cases=["case", "other"]), windows_config)
+
+
+@pytest.mark.parametrize("tasks", [["T1", "T2"], ["T1"]])
+def test_absent_root_cause_keeps_t1_and_skips_t2(local_inputs, tasks):
+    metadata, _, windows_config = local_inputs
+    metadata[0]["root_cause_service"] = "absent"
+    pd.DataFrame(metadata).to_parquet(Path(windows_config.data_dir) / "cases.parquet", index=False)
+    config = _config(tasks=tasks)
+    windows = runner.load_task_windows(config, windows_config)
+    assert len(windows) == 4 and all(w["task"] == "T1" for w in windows)
+    assert all(w["root_cause_service"] not in w["candidates"] for w in windows)
+    calls = runner.build_call_list(windows, config)
+    assert len(calls) == 4 * len(config.models) * len(config.formats)
+    assert {call["task"] for call in calls} == {"T1"}
+
+
+def test_no_t1_windows_keeps_t2(local_inputs, monkeypatch):
+    _, traces, windows_config = local_inputs
+    monkeypatch.setattr(runner, "load_case_traces", lambda path: traces[6:])
+    config = _config()
+    windows = runner.load_task_windows(config, windows_config)
+    assert len(windows) == 3 and all(w["task"] == "T2" for w in windows)
+    calls = runner.build_call_list(windows, config)
+    assert len(calls) == 3 * len(config.models) * len(config.formats)
+    assert {call["task"] for call in calls} == {"T2"}
+
+
+@pytest.mark.parametrize("tasks", [["T1"], ["T2"], ["T1", "T2"]])
+def test_no_windows_for_any_requested_task_raises(local_inputs, monkeypatch, tasks):
+    metadata, traces, windows_config = local_inputs
+    config = _config(tasks=tasks)
+    if tasks == ["T1"]:
+        # T2 windows exist, but none for the requested T1 task.
+        monkeypatch.setattr(runner, "load_case_traces", lambda path: traces[6:])
+    elif tasks == ["T2"]:
+        # T1 windows exist, but none for the requested T2 task.
+        metadata[0]["root_cause_service"] = "absent"
+        pd.DataFrame(metadata).to_parquet(
+            Path(windows_config.data_dir) / "cases.parquet", index=False
+        )
+    else:
+        windows_config = replace(windows_config, window_size=7)
+    with pytest.raises(ValueError, match="Case 'case'.*no windows for any requested task"):
+        runner.load_task_windows(config, windows_config)
+
+
+@pytest.mark.parametrize("n_candidates", [1, 2])
+def test_fewer_than_three_candidates_allowed_without_t2_windows(
+    local_inputs, monkeypatch, n_candidates
+):
+    _, traces, windows_config = local_inputs
+    services = {"a", "b"} if n_candidates == 2 else {"a"}
+    monkeypatch.setattr(
+        runner,
+        "load_case_traces",
+        lambda path: [
+            Trace(t.trace_id, tuple(s for s in t.spans if s.service in services))
+            for t in traces
+            if t.trace_id != "orphan"
+        ],
+    )
+    config = _config()
+    windows = runner.load_task_windows(config, replace(windows_config, t2_windows=0))
+    assert len(windows) == 4 and all(w["task"] == "T1" for w in windows)
+    assert all(len(w["candidates"]) == n_candidates for w in windows)
+    assert {call["task"] for call in runner.build_call_list(windows, config)} == {"T1"}
+
+
+def test_main_grid_config_matches_spec_and_all_sorted_windows_v1_cases():
+    root = Path(__file__).parents[1]
+    path = root / "configs/main_grid.yaml"
+    config = runner.TaskConfig(**yaml.safe_load(path.read_text()))
+    windows = [
+        json.loads(line)
+        for line in (root / "data/windows/windows_v1.jsonl").read_text().splitlines()
+    ]
+    cases = sorted({window["case"] for window in windows})
+    assert len(cases) == 78
+    smoke = runner.TaskConfig(**yaml.safe_load((root / "configs/tasks_smoke.yaml").read_text()))
+    assert config == replace(
+        smoke,
+        cases=cases,
+        formats=["F0", "F1", "F2", "F3", "F4", "F5"],
+        output="results/main_grid/calls.jsonl",
+    )
+    assert path.read_text().splitlines()[0] == "# Run only after PREREGISTRATION.md is committed."
 
 
 def test_smoke_config_matches_spec_without_running_it():
