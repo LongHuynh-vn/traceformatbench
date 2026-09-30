@@ -475,6 +475,11 @@ def test_saved_tasks_smoke_runs_end_to_end_without_baseline(tmp_path):
     )
     completed = _run_cli(config, 17)
     assert "Main comparisons:" in completed.stdout
+    assert (
+        "Limitation: under the null, about 0.5 false clear differences are expected among "
+        "10 comparisons at 95% (at least one with about 40% probability if independent)."
+    ) in completed.stdout.splitlines()
+    assert "about one false clear difference" not in completed.stdout
     assert set(p.name for p in (tmp_path / "smoke").iterdir()) == {
         "summary.csv",
         "comparisons.csv",

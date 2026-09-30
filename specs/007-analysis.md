@@ -149,8 +149,9 @@ T1 accuracy, plus descriptive rates (invalid_rate, truncated_rate, T1 post_rate)
 ## Interpretation notes (for the report)
 - F4 and F5 hand the model self-time numbers directly; "F4/F5 vs baseline" therefore mainly tests whether the
   model reads the maximum of a table it was given. Say so when reporting.
-- 10 main comparisons at 95% without correction: about one false "clear difference" is expected by chance
-  if nothing differs. Stated in threats to validity.
+- 10 main comparisons at 95% without correction: if nothing differs, about 0.5 false clear differences are
+  expected among 10 comparisons at 95% (at least one with about 40% probability if independent). Stated in
+  threats to validity.
 
 ## Review changes (independent review agent, 2026-09-30)
 Window key includes `label` (T1 collision); stratum = `dataset` field, merge edge cases; SHA-256 seeding;
