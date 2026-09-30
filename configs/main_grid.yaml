@@ -1,0 +1,91 @@
+# Run only after PREREGISTRATION.md is committed.
+seed: 20260930
+prompt_version: v1
+ollama_url: http://localhost:11434
+models: [qwen3.5:9b, gemma4:12b]   # one model at a time, in this order
+num_ctx: 32768
+num_predict: 256
+temperature: 0
+windows_config: configs/windows_v1.yaml
+cases:
+  - re2ob_checkoutservice_cpu_1
+  - re2ob_checkoutservice_delay_1
+  - re2ob_checkoutservice_disk_1
+  - re2ob_checkoutservice_loss_1
+  - re2ob_checkoutservice_mem_1
+  - re2ob_checkoutservice_socket_1
+  - re2ob_currencyservice_cpu_1
+  - re2ob_currencyservice_delay_1
+  - re2ob_currencyservice_disk_1
+  - re2ob_currencyservice_loss_1
+  - re2ob_currencyservice_mem_1
+  - re2ob_currencyservice_socket_1
+  - re2ob_emailservice_cpu_1
+  - re2ob_emailservice_delay_1
+  - re2ob_emailservice_disk_1
+  - re2ob_emailservice_loss_1
+  - re2ob_emailservice_mem_1
+  - re2ob_emailservice_socket_1
+  - re2ob_productcatalogservice_cpu_1
+  - re2ob_productcatalogservice_delay_1
+  - re2ob_productcatalogservice_disk_1
+  - re2ob_productcatalogservice_loss_1
+  - re2ob_productcatalogservice_mem_1
+  - re2ob_productcatalogservice_socket_1
+  - re2ob_recommendationservice_cpu_1
+  - re2ob_recommendationservice_delay_1
+  - re2ob_recommendationservice_disk_1
+  - re2ob_recommendationservice_loss_1
+  - re2ob_recommendationservice_mem_1
+  - re2ob_recommendationservice_socket_1
+  - re2tt_ts-auth-service_cpu_1
+  - re2tt_ts-auth-service_delay_1
+  - re2tt_ts-auth-service_disk_1
+  - re2tt_ts-auth-service_loss_1
+  - re2tt_ts-auth-service_mem_1
+  - re2tt_ts-auth-service_socket_1
+  - re2tt_ts-order-service_cpu_1
+  - re2tt_ts-order-service_delay_1
+  - re2tt_ts-order-service_disk_1
+  - re2tt_ts-order-service_loss_1
+  - re2tt_ts-order-service_mem_1
+  - re2tt_ts-order-service_socket_1
+  - re2tt_ts-route-service_cpu_1
+  - re2tt_ts-route-service_delay_1
+  - re2tt_ts-route-service_disk_1
+  - re2tt_ts-route-service_loss_1
+  - re2tt_ts-route-service_mem_1
+  - re2tt_ts-route-service_socket_1
+  - re2tt_ts-train-service_cpu_1
+  - re2tt_ts-train-service_delay_1
+  - re2tt_ts-train-service_disk_1
+  - re2tt_ts-train-service_loss_1
+  - re2tt_ts-train-service_mem_1
+  - re2tt_ts-train-service_socket_1
+  - re2tt_ts-travel-service_cpu_1
+  - re2tt_ts-travel-service_delay_1
+  - re2tt_ts-travel-service_disk_1
+  - re2tt_ts-travel-service_loss_1
+  - re2tt_ts-travel-service_mem_1
+  - re2tt_ts-travel-service_socket_1
+  - re3ob_adservice_f3_1
+  - re3ob_adservice_f4_1
+  - re3ob_adservice_f5_1
+  - re3ob_cartservice_f1_1
+  - re3ob_currencyservice_f1_1
+  - re3ob_emailservice_f1_1
+  - re3ob_emailservice_f2_1
+  - re3ob_emailservice_f3_1
+  - re3ob_emailservice_f4_1
+  - re3ob_emailservice_f5_1
+  - re3tt_ts-auth-service_f1_1
+  - re3tt_ts-auth-service_f2_1
+  - re3tt_ts-auth-service_f3_1
+  - re3tt_ts-auth-service_f4_1
+  - re3tt_ts-route-service_f1_1
+  - re3tt_ts-route-service_f2_1
+  - re3tt_ts-route-service_f3_1
+  - re3tt_ts-route-service_f4_1
+formats: [F0, F1, F2, F3, F4, F5]
+tasks: [T1, T2]
+output: results/main_grid/calls.jsonl
