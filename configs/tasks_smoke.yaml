@@ -1,0 +1,12 @@
+seed: 20260930
+prompt_version: v1
+ollama_url: http://localhost:11434
+models: [qwen3.5:9b, gemma4:12b]   # one model at a time, in this order
+num_ctx: 32768
+num_predict: 256
+temperature: 0
+windows_config: configs/windows_v1.yaml
+cases: [re2ob_checkoutservice_cpu_1, re2tt_ts-auth-service_cpu_1]
+formats: [F0, F1]
+tasks: [T1, T2]
+output: results/tasks_smoke/calls.jsonl

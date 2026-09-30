@@ -145,3 +145,31 @@ def test_unload_model_does_not_generate_an_answer(monkeypatch):
     )
     OllamaClient().unload_model("m")
     assert calls == [("/api/generate", {"model": "m", "keep_alive": 0})]
+
+
+@pytest.mark.parametrize("output_schema", [None, {"type": "object"}])
+def test_chat_structured_output_http_payload(monkeypatch, chat_response, output_schema):
+    requests = []
+
+    def fake_urlopen(request, timeout):
+        payload = json.loads(request.data)
+        requests.append(payload)
+        response = {"capabilities": []} if request.full_url.endswith("/api/show") else chat_response
+        return BytesIO(json.dumps(response).encode("utf-8"))
+
+    monkeypatch.setattr("urllib.request.urlopen", fake_urlopen)
+    OllamaClient("http://mock").chat(
+        "m",
+        "system",
+        "user",
+        4096,
+        256,
+        0,
+        7,
+        False,
+        output_schema=output_schema,
+    )
+    if output_schema is None:
+        assert "format" not in requests[-1]
+    else:
+        assert requests[-1]["format"] == output_schema

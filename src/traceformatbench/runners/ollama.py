@@ -78,6 +78,7 @@ class OllamaClient:
         temperature: float,
         seed: int,
         think: bool,
+        output_schema: dict | None = None,
     ) -> ChatResult:
         """Make one non-streaming chat request with explicit generation options.
 
@@ -99,6 +100,8 @@ class OllamaClient:
                 "seed": seed,
             },
         }
+        if output_schema is not None:
+            payload["format"] = output_schema
         if "thinking" in self.model_capabilities(model):
             payload["think"] = think
         response = self._request("/api/chat", payload)
