@@ -105,3 +105,16 @@ Tests that must pass (in addition to the ones above):
 
 ## Out of scope
 - Changing T1 or T2, formats F2-F5, the main grid, PREREGISTRATION.md.
+
+## Pilot outcome (2026-09-30, exploratory, not a result)
+- 16/16 calls `ok`, every `done_reason` was `stop`, invalid 0, fence 0. `ollama ps` showed qwen3.5:9b at 100% GPU with
+  context 65536 (6.8 GB). Largest prompt 32,655 tokens (gemma, OB F0 pair). Call time without load: qwen 23-90 s,
+  gemma 41-170 s.
+- Answer distribution: gemma4:12b answered `B` in 8/8 pairs; qwen3.5:9b answered `B` in 7/8 (one `A`). The constant
+  label answer of T1 (pre/post) became a constant position answer (last window shown).
+- Per the decision rule above, answers are still (almost) constant per model, so T1P does not fix T1. For comparison,
+  T2 rankings in the spec 005 smoke run did change across windows (and sometimes across formats).
+- Decision (student, 2026-09-30): T2 becomes the primary task; T1 (single window) stays as a secondary task with
+  1 window per phase; T2 goes from 3 to 5 windows per case (`configs/windows_v1.yaml`: 1/5, still 7 windows per case,
+  same compute budget). T1P is not used in the main grid; its code stays for reproducibility. To be written in
+  PREREGISTRATION.md.
