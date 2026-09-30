@@ -704,7 +704,7 @@ def test_smoke_config_matches_spec_without_running_it():
     "overrides",
     [
         {"prompt_version": "v2"},
-        {"formats": ["F2"]},
+        {"formats": ["F6"]},
         {"tasks": ["T3"]},
         {"models": []},
         {"cases": ["case", "case"]},
@@ -716,3 +716,8 @@ def test_smoke_config_matches_spec_without_running_it():
 def test_invalid_config(overrides):
     with pytest.raises(ValueError):
         _config(**overrides)
+
+
+@pytest.mark.parametrize("fmt", ["F2", "F3", "F4", "F5"])
+def test_task_config_accepts_structured_formats(fmt):
+    assert _config(formats=[fmt]).formats == [fmt]

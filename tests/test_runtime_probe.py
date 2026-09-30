@@ -578,6 +578,11 @@ def test_local_window_loader_uses_exact_spec003_rng_and_never_downloads(tmp_path
     assert only_ob == [window for window in windows if window["case"] == "ob"]
 
 
-def test_runtime_config_rejects_out_of_scope_formats():
-    with pytest.raises(ValueError, match="only F0 and F1"):
-        _config(formats=["F2"])
+@pytest.mark.parametrize("fmt", ["F2", "F3", "F4", "F5"])
+def test_runtime_config_accepts_structured_formats(fmt):
+    assert _config(formats=[fmt]).formats == [fmt]
+
+
+def test_runtime_config_rejects_unknown_formats():
+    with pytest.raises(ValueError, match="Unknown format ID"):
+        _config(formats=["F6"])

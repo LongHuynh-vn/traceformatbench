@@ -53,8 +53,8 @@ class TaskConfig:
             values = getattr(self, name)
             if not values or len(values) != len(set(values)):
                 raise ValueError(f"{name} must be non-empty and contain no duplicates.")
-        if not set(self.formats) <= {"F0", "F1"}:
-            raise ValueError("Spec 005 supports only F0 and F1.")
+        if not set(self.formats) <= set(SERIALIZERS):
+            raise ValueError(f"Unknown format ID; expected one of {sorted(SERIALIZERS)}.")
         if not set(self.tasks) <= {"T1", "T1P", "T2"}:
             raise ValueError("Specs 005/005b support only T1, T1P and T2.")
         if self.prompt_version != PROMPT_VERSION:
