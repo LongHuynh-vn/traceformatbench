@@ -412,8 +412,8 @@ def write_report(config: AnalysisConfig) -> tuple[pd.DataFrame, ...]:
         "95% CIs without multiplicity correction."
     )
     print(
-        "Limitation: with 10 main comparisons, about one false clear difference "
-        "is expected under the null."
+        "Limitation: under the null, about 0.5 false clear differences are expected among "
+        "10 comparisons at 95% (at least one with about 40% probability if independent)."
     )
     print(
         "F4/F5 expose self-time directly; comparison with self-time mainly tests "

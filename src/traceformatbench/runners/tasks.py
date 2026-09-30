@@ -6,7 +6,7 @@ import hashlib
 import json
 import random
 from collections.abc import Iterator, Mapping, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 
 import pandas as pd
@@ -14,8 +14,10 @@ import pandas as pd
 from traceformatbench.analysis.runtime_probe import (
     call_status,
     check_prompt_length,
+    leaked_thinking,
     serialize_windows,
 )
+from traceformatbench.analysis.token_probe import near_truncation_point
 from traceformatbench.data.rcaeval import INDEX_FILE
 from traceformatbench.data.trace import load_case_traces
 from traceformatbench.data.windows import WindowConfig, build_case_windows, load_window_config
@@ -284,6 +286,18 @@ def record_key(record: Mapping) -> tuple:
     )
 
 
+def recount_num_ctx(num_ctx: int) -> int:
+    """Pre-registration section 6: the num_ctx/2 band lies elsewhere at 3/4 of num_ctx."""
+    return num_ctx * 3 // 4
+
+
+def needs_recount(result: ChatResult, num_ctx: int) -> bool:
+    """Truncated only by the num_ctx/2 band, with the count still below num_ctx."""
+    return result.prompt_eval_count < num_ctx and near_truncation_point(
+        result.prompt_eval_count, num_ctx
+    )
+
+
 def make_record(
     call: Mapping,
     result: ChatResult,
@@ -291,8 +305,28 @@ def make_record(
     model_digest: str,
     ollama_version: str,
     think_sent: bool | None,
+    recount: ChatResult | None = None,
 ) -> dict:
-    """Raw records omit prompts and raw traces, keeping reproducible prompt hashes."""
+    """Raw records omit prompts and raw traces, keeping reproducible prompt hashes.
+
+    A re-count only decides the status; its answer is never stored or scored.
+    """
+    status = call_status(result, call["num_ctx"])
+    recount_fields = {
+        "recount_num_ctx": None,
+        "recount_prompt_eval_count": None,
+        "status_before_recount": None,
+    }
+    if recount is not None:
+        if not needs_recount(result, call["num_ctx"]):
+            raise ValueError("A re-count is only valid for a call truncated by the band alone.")
+        recount_fields = {
+            "recount_num_ctx": recount_num_ctx(call["num_ctx"]),
+            "recount_prompt_eval_count": recount.prompt_eval_count,
+            "status_before_recount": status,
+        }
+        if recount.prompt_eval_count == result.prompt_eval_count:
+            status = "thinking_leak" if leaked_thinking(result) else "ok"
     return {
         **{
             key: value
@@ -309,8 +343,25 @@ def make_record(
         "total_s": result.total_duration_ns / 1e9,
         "load_s": result.load_duration_ns / 1e9,
         "content": result.content,
-        "status": call_status(result, call["num_ctx"]),
+        "status": status,
+        **recount_fields,
     }
+
+
+def send_call(client: OllamaClient, call: Mapping, config: TaskConfig, num_ctx: int) -> ChatResult:
+    """Check the prompt length against the num_ctx actually sent, then make one chat request."""
+    check_prompt_length(call, replace(config, num_ctx=num_ctx))
+    return client.chat(
+        model=call["model"],
+        system=call["system_prompt"],
+        user=call["user_prompt"],
+        num_ctx=num_ctx,
+        num_predict=config.num_predict,
+        temperature=config.temperature,
+        seed=config.seed,
+        think=False,
+        output_schema=call["output_schema"],
+    )
 
 
 def run_tasks(
@@ -318,7 +369,10 @@ def run_tasks(
     client: OllamaClient,
     done: frozenset[tuple] = frozenset(),
 ) -> Iterator[dict]:
-    """Preflight before generation, stream calls, and unload each model before the next."""
+    """Preflight before generation, stream calls, and unload each model before the next.
+
+    A record is yielded only after its re-count, so a resumed record is never re-counted.
+    """
     version = client.version()
     digests = {model: client.model_digest(model) for model in config.models}
     capabilities = {model: client.model_capabilities(model) for model in config.models}
@@ -333,17 +387,11 @@ def run_tasks(
             continue
         try:
             for call in batch:
-                check_prompt_length(call, config)
-                result = client.chat(
-                    model=model,
-                    system=call["system_prompt"],
-                    user=call["user_prompt"],
-                    num_ctx=config.num_ctx,
-                    num_predict=config.num_predict,
-                    temperature=config.temperature,
-                    seed=config.seed,
-                    think=False,
-                    output_schema=call["output_schema"],
+                result = send_call(client, call, config, config.num_ctx)
+                recount = (
+                    send_call(client, call, config, recount_num_ctx(config.num_ctx))
+                    if needs_recount(result, config.num_ctx)
+                    else None
                 )
                 yield make_record(
                     call,
@@ -351,6 +399,7 @@ def run_tasks(
                     model_digest=digests[model],
                     ollama_version=version,
                     think_sent=False if "thinking" in capabilities[model] else None,
+                    recount=recount,
                 )
         finally:
             client.unload_model(model)

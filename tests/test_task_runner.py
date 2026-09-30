@@ -20,6 +20,7 @@ from traceformatbench.serializers import SERIALIZERS
 from traceformatbench.tasks.pairs import align_pair_times
 from traceformatbench.tasks.prompts import SYSTEM_PROMPT, build_t1p_prompt
 from traceformatbench.tasks.schemas import t1p_schema
+from traceformatbench.tasks.scoring import score_record
 
 
 def _script(name):
@@ -33,6 +34,7 @@ def _script(name):
 
 run_script = _script("run_tasks")
 score_script = _script("score_tasks")
+check_script = _script("check_grid")
 
 
 @pytest.fixture(autouse=True)
@@ -205,7 +207,8 @@ def test_raw_record_fields_hash_and_no_trace_text(fake_inputs):
         "case dataset system fault root_cause_service task window_index informative label "
         "model model_digest ollama_version format prompt_version seed num_ctx num_predict "
         "temperature think_sent prompt_sha256 prompt_chars prompt_eval_count "
-        "prompt_eval_cached_count eval_count done_reason total_s load_s content status".split()
+        "prompt_eval_cached_count eval_count done_reason total_s load_s content status "
+        "recount_num_ctx recount_prompt_eval_count status_before_recount".split()
     )
     for record, call in zip(records, client.calls, strict=True):
         assert set(record) == expected | ({"candidates"} if record["task"] == "T2" else set())
@@ -237,6 +240,146 @@ def test_call_status_is_retained(result, status):
         call, result, model_digest="d", ollama_version="v", think_sent=False
     )
     assert record["status"] == status
+
+
+class BandClient(FakeClient):
+    """The first request returns `first` tokens; a re-count returns `recount` and another answer."""
+
+    def __init__(self, first=16384, recount=16384):
+        super().__init__()
+        self.first, self.recount = first, recount
+
+    def chat(self, **kwargs):
+        super().chat(**kwargs)
+        if kwargs["num_ctx"] == 32768:
+            return _result(prompt_eval_count=self.first)
+        return _result(prompt_eval_count=self.recount, content='{"phase":"post"}')
+
+
+def _t1_pre_config():
+    return _config(models=["m1"], formats=["F0"], tasks=["T1"])
+
+
+@pytest.mark.parametrize("count", [16368, 16384, 16400])
+def test_band_hit_with_equal_recount_is_ok_and_scores_original_answer(fake_inputs, count):
+    client = BandClient(first=count, recount=count)
+    records = list(runner.run_tasks(_t1_pre_config(), client))
+    assert [call["num_ctx"] for call in client.calls] == [32768, 24576] * 2
+    assert client.calls[1] == {**client.calls[0], "num_ctx": 24576}
+    record = records[0]
+    assert record["label"] == "pre"
+    assert (
+        record["status"],
+        record["status_before_recount"],
+        record["recount_num_ctx"],
+        record["recount_prompt_eval_count"],
+        record["prompt_eval_count"],
+        record["num_ctx"],
+        record["content"],
+    ) == ("ok", "truncated", 24576, count, count, 32768, '{"phase":"pre"}')
+    scored = score_record(record)
+    assert scored["answer"] == "pre" and scored["correct"] == 1
+
+
+def test_band_hit_with_different_recount_stays_truncated(fake_inputs):
+    client = BandClient(first=16384, recount=16383)
+    record = list(runner.run_tasks(_t1_pre_config(), client))[0]
+    assert len(client.calls) == 4
+    assert (
+        record["status"],
+        record["status_before_recount"],
+        record["recount_num_ctx"],
+        record["recount_prompt_eval_count"],
+        record["content"],
+    ) == ("truncated", "truncated", 24576, 16383, '{"phase":"pre"}')
+    assert score_record(record)["correct"] == 0
+
+
+@pytest.mark.parametrize("count", [100, 16367, 16401, 32767])
+def test_calls_outside_band_send_no_second_request(fake_inputs, count):
+    client = BandClient(first=count)
+    records = list(runner.run_tasks(_t1_pre_config(), client))
+    assert [call["num_ctx"] for call in client.calls] == [32768, 32768]
+    for record in records:
+        assert record["status"] == "ok"
+        assert record["recount_num_ctx"] is None
+        assert record["recount_prompt_eval_count"] is None
+        assert record["status_before_recount"] is None
+
+
+@pytest.mark.parametrize("count", [32768, 40000])
+def test_count_at_or_above_num_ctx_is_truncated_without_recount(fake_inputs, count):
+    client = BandClient(first=count)
+    records = list(runner.run_tasks(_t1_pre_config(), client))
+    assert [call["num_ctx"] for call in client.calls] == [32768, 32768]
+    assert all(r["status"] == "truncated" and r["recount_num_ctx"] is None for r in records)
+
+
+def test_normal_calls_send_one_request_each(fake_inputs):
+    client = FakeClient()
+    records = list(runner.run_tasks(_config(), client))
+    assert len(client.calls) == len(records) == 12
+    assert all(call["num_ctx"] == 32768 for call in client.calls)
+    assert all(r["recount_num_ctx"] is None for r in records)
+
+
+def test_equal_recount_keeps_thinking_leak_status():
+    call = runner.build_call_list(_windows(), _config())[0]
+    record = runner.make_record(
+        call,
+        _result(prompt_eval_count=16384, thinking="reasoning"),
+        model_digest="d",
+        ollama_version="v",
+        think_sent=False,
+        recount=_result(prompt_eval_count=16384),
+    )
+    assert (record["status"], record["status_before_recount"]) == ("thinking_leak", "truncated")
+
+
+@pytest.mark.parametrize("count", [100, 32768])
+def test_recount_outside_band_is_rejected(count):
+    call = runner.build_call_list(_windows(), _config())[0]
+    with pytest.raises(ValueError, match="band alone"):
+        runner.make_record(
+            call,
+            _result(prompt_eval_count=count),
+            model_digest="d",
+            ollama_version="v",
+            think_sent=False,
+            recount=_result(prompt_eval_count=count),
+        )
+
+
+def test_recount_checks_prompt_length_against_smaller_num_ctx(monkeypatch, fake_inputs):
+    windows = _windows()
+    windows[0]["texts"]["F0"] = "x" * 50_000
+    monkeypatch.setattr(runner, "load_task_windows", lambda *args: windows)
+    client = BandClient()
+    with pytest.raises(ValueError, match="may exceed num_ctx=24576"):
+        list(runner.run_tasks(_t1_pre_config(), client))
+    assert [call["num_ctx"] for call in client.calls] == [32768]
+    assert client.events[-1] == ("unload", "m1")
+
+
+def test_resume_does_not_repeat_completed_recount(tmp_path, fake_inputs):
+    config = _t1_pre_config()
+    first = list(runner.run_tasks(config, BandClient()))
+    output = tmp_path / "calls.jsonl"
+    output.write_text(json.dumps(first[0]) + "\n")
+    saved = runner.read_records(output)
+    assert saved[0]["recount_num_ctx"] == 24576 and saved[0]["status"] == "ok"
+    client = BandClient()
+    rest = list(runner.run_tasks(config, client, frozenset(runner.record_key(r) for r in saved)))
+    assert [runner.record_key(r) for r in rest] == [runner.record_key(first[1])]
+    assert [call["num_ctx"] for call in client.calls] == [32768, 24576]
+    assert all(
+        runner.prompt_sha256(call["system"], call["user"]) == first[1]["prompt_sha256"]
+        for call in client.calls
+    )
+    client = BandClient()
+    done = frozenset(runner.record_key(r) for r in first)
+    assert list(runner.run_tasks(config, client, done)) == []
+    assert client.calls == []
 
 
 @pytest.mark.parametrize("failure", ["server", "model"])
@@ -425,6 +568,101 @@ def test_dry_run_checks_prompt_length_without_client_or_output(tmp_path, monkeyp
         run_script.main()
     client.assert_not_called()
     assert not Path(config.output).exists()
+
+
+@pytest.fixture
+def grid(tmp_path, monkeypatch, fake_inputs):
+    """A complete synthetic grid of 12 records and a config file, planned without Ollama."""
+    monkeypatch.setattr(check_script, "load_window_config", lambda path: None)
+    monkeypatch.setattr(check_script, "load_task_windows", lambda *args: _windows())
+    config = _config(output=str(tmp_path / "calls.jsonl"))
+    config_path = tmp_path / "grid.yaml"
+    config_path.write_text(yaml.safe_dump(config.__dict__))
+    return config_path, Path(config.output), list(runner.run_tasks(config, FakeClient()))
+
+
+def _check_grid(grid, records, monkeypatch, capsys):
+    config_path, output, _ = grid
+    output.write_text("".join(json.dumps(r) + "\n" for r in records))
+    monkeypatch.setattr(sys, "argv", ["check_grid.py", str(config_path), str(output)])
+    with pytest.raises(SystemExit) as exit_info:
+        check_script.main()
+    return exit_info.value.code, capsys.readouterr().out.splitlines()
+
+
+def test_check_grid_passes_on_complete_grid(grid, monkeypatch, capsys):
+    records = grid[2]
+    records[0].update(
+        status="ok",
+        recount_num_ctx=24576,
+        recount_prompt_eval_count=16384,
+        status_before_recount="truncated",
+    )
+    records[1]["status"] = "truncated"
+    records[2]["status"] = "thinking_leak"
+    code, lines = _check_grid(grid, records, monkeypatch, capsys)
+    assert code == 0
+    assert lines == [
+        "PASS  calls: 12 planned, 12 records; missing 0, extra 0, duplicate keys 0",
+        "PASS  model m1: 6 records; model_digest digest-m1; ollama_version v",
+        "PASS  model m2: 6 records; model_digest digest-m2; ollama_version v",
+        "PASS  statuses: ok 10, truncated 1, thinking_leak 1, other 0; "
+        "re-counted 1 (1 no longer truncated)",
+        "All checks passed.",
+    ]
+
+
+def _extra(records):
+    return [*records, {**records[0], "seed": 8}]
+
+
+def _two_digests(records):
+    records[0]["model_digest"] = "other"
+    return records
+
+
+def _two_versions(records):
+    records[6]["ollama_version"] = "v2"
+    return records
+
+
+def _unknown_status(records):
+    records[0]["status"] = "error"
+    return records
+
+
+@pytest.mark.parametrize(
+    "change, failed",
+    [
+        (lambda r: r[:-1], "calls: 12 planned, 11 records; missing 1, extra 0, duplicate keys 0"),
+        (_extra, "calls: 12 planned, 13 records; missing 0, extra 1, duplicate keys 0"),
+        (
+            lambda r: [*r, r[0]],
+            "calls: 12 planned, 13 records; missing 0, extra 0, duplicate keys 1",
+        ),
+        (_two_digests, "model m1: 6 records; model_digest digest-m1, other; ollama_version v"),
+        (_two_versions, "model m2: 6 records; model_digest digest-m2; ollama_version v, v2"),
+        (lambda r: r[:6], "model m2: 0 records; model_digest -; ollama_version -"),
+        (
+            _unknown_status,
+            "statuses: ok 11, truncated 0, thinking_leak 0, other 1; "
+            "re-counted 0 (0 no longer truncated)",
+        ),
+    ],
+    ids=["missing", "extra", "duplicate", "two-digests", "two-versions", "no-model", "status"],
+)
+def test_check_grid_fails(grid, monkeypatch, capsys, change, failed):
+    code, lines = _check_grid(grid, change(grid[2]), monkeypatch, capsys)
+    assert code == 1
+    assert f"FAIL  {failed}" in lines
+    assert lines[-1] == "Some checks failed."
+
+
+def test_check_grid_without_calls_file_exits_with_message(grid, monkeypatch):
+    config_path, output, _ = grid
+    monkeypatch.setattr(sys, "argv", ["check_grid.py", str(config_path), str(output)])
+    with pytest.raises(SystemExit, match="No calls file"):
+        check_script.main()
 
 
 def test_record_reader_rejects_interior_corruption_and_strict_incomplete_tail(tmp_path):

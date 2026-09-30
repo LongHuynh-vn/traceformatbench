@@ -142,6 +142,10 @@ def record_key(record: Mapping) -> tuple:
     )
 
 
+def leaked_thinking(result: ChatResult) -> bool:
+    return bool(result.thinking) or "<think>" in result.content
+
+
 def call_status(result: ChatResult, num_ctx: int) -> str:
     """Flag the truncation signature and leaked thinking, without parsing the answer."""
     if (
@@ -149,7 +153,7 @@ def call_status(result: ChatResult, num_ctx: int) -> str:
         or result.prompt_eval_count >= num_ctx
     ):
         return "truncated"
-    if result.thinking or "<think>" in result.content:
+    if leaked_thinking(result):
         return "thinking_leak"
     return "ok"
 
