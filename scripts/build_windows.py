@@ -34,7 +34,7 @@ def main() -> None:
 
     short = stats[
         (stats["n_t1_windows"] < 2 * config.t1_windows_per_phase)
-        | (stats["n_t2_windows"] < config.t2_windows)
+        | (stats["t2_answerable"] & (stats["n_t2_windows"] < config.t2_windows))
     ]
     print(f"Cases: {len(stats)}")
     print(f"T1 windows: {int(stats['n_t1_windows'].sum())} (half pre, half post)")
@@ -43,6 +43,8 @@ def main() -> None:
         f"informative: {int(stats['n_t2_informative'].sum())}"
     )
     print(f"Cases with fewer windows than configured: {list(short['case'])}")
+    no_t2 = list(stats[~stats["t2_answerable"]]["case"])
+    print(f"Cases without T2 (root cause not in any trace): {no_t2}")
     print(f"\nWindows: {output_windows}\nStats: {output_stats}")
 
 

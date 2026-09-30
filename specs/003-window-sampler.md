@@ -106,3 +106,12 @@ the data (selection bias).
    Update 2026-09-29: chosen from the runtime probe (spec 004): `t1_windows_per_phase: 2`, `t2_windows: 3`.
 4. T2: primary analysis on all T2 windows, plus a pre-registered secondary analysis on informative
    windows only. This spec only needs to produce the `informative` flag; the analysis itself is out of scope.
+
+## Amendment (student, 2026-09-30, after building windows_v1 for all 78 cases)
+5. T2 only for answerable cases: a case gets T2 windows only if its root-cause service appears in the
+   case's traces (the same set as the T2 candidate list, `case_candidates`). Otherwise the case keeps its
+   T1 windows and gets no T2 windows; the stats row records `t2_answerable`.
+   Reason: in 4 RE3-OB cases (adservice f3/f4/f5, cartservice f1) the root-cause service never appears in
+   any trace, so every T2 answer would be wrong regardless of format (20 windows, 240 main-grid calls).
+   T2 sampling is the last use of the per-case RNG, so T1 windows of every case are unchanged.
+   Test: `test_no_t2_when_root_cause_is_not_among_the_case_services`.

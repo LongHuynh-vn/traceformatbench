@@ -246,7 +246,7 @@ def test_t1_is_balanced_when_post_has_fewer_windows():
 
 def test_t1_is_empty_when_one_phase_has_no_window():
     pre = _series("p", 0, 2)  # fewer than window_size
-    post = _series("q", INJECT_S + GUARD_S, 20)
+    post = _series("q", INJECT_S + GUARD_S, 20, ("frontend", ROOT_CAUSE))
     records, stats = build_case_windows(
         _meta(), pre + post, _config(window_size=3, t2_windows=2), random.Random(0)
     )
@@ -280,7 +280,7 @@ def test_t1_records_have_no_informative_flag():
 
 
 def test_window_record_fields():
-    traces = _series("p", 0, 3) + _series("q", INJECT_S + GUARD_S, 3)
+    traces = _series("p", 0, 3) + _series("q", INJECT_S + GUARD_S, 3, ("frontend", ROOT_CAUSE))
     records, _ = build_case_windows(
         _meta(),
         traces,
@@ -340,11 +340,26 @@ def test_stats_row_on_small_synthetic_case():
         "share_post_via_root_cause_all": 3 / 5,
         "share_post_via_root_cause_eligible": 2 / 3,
         "n_t1_windows": 4,  # pre yields 2 windows of 1, post 3: matched to 2 + 2
+        "t2_answerable": True,
         "n_t2_windows": 3,
         "n_t2_informative": 2,
     }
     assert sorted(r["trace_ids"][0] for r in records if r["task"] == "T2") == ["q0", "q1", "q4"]
     assert not {"p2", "g0", "q2", "q3"} & {tid for r in records for tid in r["trace_ids"]}
+
+
+def test_no_t2_when_root_cause_is_not_among_the_case_services():
+    traces = _series("p", 0, 10) + _series("q", INJECT_S + GUARD_S, 10, ("frontend", "cart"))
+    config = _config(window_size=2, t1_windows_per_phase=2, t2_windows=3)
+    records, stats = build_case_windows(_meta(), traces, config, random.Random(0))
+    assert [r["task"] for r in records] == ["T1"] * 4
+    assert stats["t2_answerable"] is False
+    assert stats["n_t2_windows"] == 0 and stats["n_t2_informative"] == 0
+    # T1 windows are identical to an otherwise equal case whose root cause does appear.
+    answerable = traces + [_trace("x", _at(INJECT_S), ("frontend", ROOT_CAUSE))]  # guard band
+    other, other_stats = build_case_windows(_meta(), answerable, config, random.Random(0))
+    assert other_stats["t2_answerable"] is True
+    assert [r for r in other if r["task"] == "T1"] == records
 
 
 def test_stats_shares_are_none_without_post_traces():
