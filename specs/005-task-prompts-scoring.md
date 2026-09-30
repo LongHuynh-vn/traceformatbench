@@ -158,3 +158,13 @@ Line breaks inside a sentence above are only for readability of this spec; in co
 ## Implementation notes (review, 2026-09-30)
 - Undefined T1 precision/recall/F1 (e.g. a model that never answers `post`) are reported as 0.0.
 - The fence strip only removes a fence with the content on its own lines; a one-line fence counts as `invalid_json`.
+
+## Smoke run outcome (2026-09-30, exploratory, not a result)
+- 56/56 calls `ok`, every `done_reason` was `stop`; no truncation, no thinking leak, no cached prefix.
+- Structured output works on both models: `invalid_rate` 0 and `fence_rate` 0 for every model, format and task
+  (gemma4:12b no longer wraps answers in a code fence). Answers are 6-7 tokens for T1 and 18-29 tokens for T2.
+- Observation for the student (answer distribution, not accuracy): on all 16 T1 windows qwen3.5:9b answered `pre`
+  and gemma4:12b answered `post`, for both formats and both cases. A constant answer scores exactly 0.5 accuracy on
+  the balanced design, so T1 may carry little signal for comparing formats. Only 2 cases, so no conclusion yet.
+- Environment during the run: uv 0.11.7 -> 0.12.21 and Python 3.14.4 -> 3.14.7 were upgraded while the run was
+  in progress (model outputs come from Ollama, so answers are unaffected; the next long run starts after upgrades).
