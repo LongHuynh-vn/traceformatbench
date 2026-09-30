@@ -72,8 +72,8 @@ class RuntimeProbeConfig:
             values = getattr(self, name)
             if not values or len(values) != len(set(values)):
                 raise ValueError(f"{name} must be non-empty and contain no duplicates.")
-        if not set(self.formats) <= {"F0", "F1"}:
-            raise ValueError("The runtime probe supports only F0 and F1 (spec 004).")
+        if not set(self.formats) <= set(SERIALIZERS):
+            raise ValueError(f"Unknown format ID; expected one of {sorted(SERIALIZERS)}.")
         if self.num_ctx <= 0 or self.num_predict <= 0:
             raise ValueError("num_ctx and num_predict must be positive.")
 

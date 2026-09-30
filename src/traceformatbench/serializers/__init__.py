@@ -1,10 +1,16 @@
-"""Serialize trace windows as F0 raw rows or F1 minified JSON."""
+"""Serialize trace windows in the registered F0-F5 formats."""
 
 import json
 from collections.abc import Callable, Sequence
 from datetime import UTC, datetime
 
 from traceformatbench.data.trace import Trace
+from traceformatbench.serializers.structured import (
+    serialize_f2,
+    serialize_f3,
+    serialize_f4,
+    serialize_f5,
+)
 
 
 def serialize_f0(window: Sequence[Trace]) -> str:
@@ -59,4 +65,8 @@ def serialize_f1(window: Sequence[Trace]) -> str:
 SERIALIZERS: dict[str, Callable[[Sequence[Trace]], str]] = {
     "F0": serialize_f0,
     "F1": serialize_f1,
+    "F2": serialize_f2,
+    "F3": serialize_f3,
+    "F4": serialize_f4,
+    "F5": serialize_f5,
 }

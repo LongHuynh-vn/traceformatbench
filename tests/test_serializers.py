@@ -192,5 +192,6 @@ def test_unicode_operation_is_not_escaped(serializer, window: tuple[Trace, ...])
     assert "\\u" not in serialized
 
 
-def test_serializers_registry_contains_exactly_f0_and_f1():
-    assert SERIALIZERS == {"F0": serialize_f0, "F1": serialize_f1}
+def test_serializers_registry_preserves_f0_and_f1():
+    assert SERIALIZERS["F0"] is serialize_f0
+    assert SERIALIZERS["F1"] is serialize_f1
