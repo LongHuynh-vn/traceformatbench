@@ -19,6 +19,7 @@ import yaml
 from traceformatbench.data.rcaeval import download_traced_cases
 from traceformatbench.data.trace import Trace, load_case_traces
 from traceformatbench.serializers import serialize_f0
+from traceformatbench.tasks.prompts import case_candidates
 
 Phase = Literal["pre", "post"]
 PHASES: tuple[Phase, ...] = ("pre", "post")
@@ -168,8 +169,16 @@ def build_case_windows(
         if len(t1[phase]) > matched:
             keep = sorted(rng.sample(range(len(t1[phase])), matched))
             t1[phase] = [t1[phase][i] for i in keep]
-    t2 = sample_windows(
-        eligible_by_phase["post"], "post", config.window_size, config.t2_windows, rng
+    # T2 is answerable only if the root cause is a T2 candidate (a service seen in the case's
+    # traces); otherwise the case gets no T2 windows (spec 003 amendment, 2026-09-30).
+    # T2 sampling is the last use of the per-case RNG, so skipping it leaves T1 unchanged.
+    t2_answerable = root_cause in case_candidates(traces)
+    t2 = (
+        sample_windows(
+            eligible_by_phase["post"], "post", config.window_size, config.t2_windows, rng
+        )
+        if t2_answerable
+        else []
     )
 
     records = [
@@ -200,6 +209,7 @@ def build_case_windows(
             via_root_cause(eligible_by_phase["post"]), len(eligible_by_phase["post"])
         ),
         "n_t1_windows": 2 * matched,
+        "t2_answerable": t2_answerable,
         "n_t2_windows": len(t2),
         "n_t2_informative": sum(
             record["informative"] for record in records if record["task"] == "T2"
