@@ -1,0 +1,14 @@
+# Exploratory runtime measurement for all six formats, not a benchmark result (spec 004 probe, rerun 2026-09-30).
+# Placeholder prompt: answers are never parsed or scored, so this run does not touch the pre-registered analysis.
+# Cases: the case with the largest windows (num_ctx check), plus a typical RE2-TT, RE3-TT and RE3-OB case.
+# Run: uv run python scripts/runtime_probe.py configs/runtime_probe_f0_f5.yaml
+seed: 20260930
+ollama_url: http://localhost:11434
+models: [qwen3.5:9b, gemma4:12b]
+num_ctx: 32768
+num_predict: 256
+temperature: 0
+windows_config: configs/windows_v1.yaml
+cases: [re2ob_currencyservice_cpu_1, re2tt_ts-auth-service_disk_1, re3tt_ts-auth-service_f4_1, re3ob_adservice_f5_1]
+formats: [F0, F1, F2, F3, F4, F5]
+output: results/runtime_probe_f0_f5/calls.jsonl
