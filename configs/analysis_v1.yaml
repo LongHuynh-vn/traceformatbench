@@ -1,0 +1,10 @@
+# Analyze the main grid and already-computed baseline; this command never runs either.
+# ORDER RULE: do not compute the windows_v1 baseline before committing PREREGISTRATION.md.
+seed: 20260930
+n_boot: 10000
+ci: 0.95
+control: F0
+min_stratum_cases: 5
+scores: [results/main_grid/scores.jsonl]
+baseline: results/baselines/selftime_v1.jsonl
+output_dir: results/analysis_v1
