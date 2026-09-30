@@ -32,6 +32,18 @@ def build_t2_prompt(traces_text: str, n: int, candidates: Sequence[str]) -> str:
     )
 
 
+def build_t1p_prompt(a_text: str, b_text: str, n: int) -> str:
+    return (
+        f"Below are two windows of {n} traces each, recorded in the same microservice system.\n"
+        "At some point, a fault was injected into one service of this system. "
+        "One window was recorded before the fault injection and the other after it.\n\n"
+        f"<window_a>\n{a_text}\n</window_a>\n\n"
+        f"<window_b>\n{b_text}\n</window_b>\n\n"
+        "Which window was recorded after the fault injection?\n"
+        'Answer with {"after": "A"} or {"after": "B"}.'
+    )
+
+
 def case_candidates(traces: Sequence[Trace]) -> list[str]:
     """Include every span service, before any trace eligibility filtering."""
     return sorted({span.service for trace in traces for span in trace.spans})

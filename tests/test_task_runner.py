@@ -16,7 +16,10 @@ from traceformatbench.data.trace import Span, Trace
 from traceformatbench.data.windows import WindowConfig, build_case_windows
 from traceformatbench.runners import tasks as runner
 from traceformatbench.runners.ollama import ChatResult
-from traceformatbench.tasks.prompts import SYSTEM_PROMPT
+from traceformatbench.serializers import SERIALIZERS
+from traceformatbench.tasks.pairs import align_pair_times
+from traceformatbench.tasks.prompts import SYSTEM_PROMPT, build_t1p_prompt
+from traceformatbench.tasks.schemas import t1p_schema
 
 
 def _script(name):
@@ -95,6 +98,24 @@ def _windows(case="case"):
             "label": phase if task == "T1" else "a",
             "trace_ids": ["trace"],
             "texts": {fmt: f"{fmt} {case} {phase}" for fmt in ("F0", "F1")},
+            "traces": [
+                Trace(
+                    "trace",
+                    (
+                        Span(
+                            "span",
+                            None,
+                            "trace",
+                            "a",
+                            "op",
+                            None,
+                            100_000_000 if phase == "pre" else 1100_000_000,
+                            10,
+                            None,
+                        ),
+                    ),
+                )
+            ],
             "candidates": ["a", "b", "c"],
         }
         for task, phase in (("T1", "pre"), ("T1", "post"), ("T2", "post"))
@@ -412,6 +433,184 @@ def test_local_loader_rebuilds_exact_windows_rng_and_all_trace_candidates(local_
             {k: v for k, v in w.items() if k not in {"texts", "candidates"}} for w in actual
         ] == expected
         assert all(w["candidates"] == ["a", "b", "c", "z"] for w in actual)
+
+
+def test_t1p_pairs_reuse_t1_windows_and_counterbalance_per_case(local_inputs):
+    _, _, windows_config = local_inputs
+    config = _config(tasks=["T1P"], cases=["other", "case"])
+    windows = runner.load_task_windows(config, windows_config)
+    pairs = {case: runner.pair_t1_windows(windows, case) for case in config.cases}
+    calls = runner.build_call_list(windows, config)
+    assert len(calls) == 2 * len(config.models) * len(config.cases) * len(config.formats)
+    assert [(c["model"], c["case"], c["window_index"], c["format"]) for c in calls] == [
+        (model, case, index, fmt)
+        for model in config.models
+        for case in config.cases
+        for index in (0, 1)
+        for fmt in config.formats
+    ]
+    for call in calls:
+        pre, post = pairs[call["case"]][call["window_index"]]
+        assert pre in windows and post in windows
+        assert all(trace.startswith("pre") for trace in pre["trace_ids"])
+        assert all(trace.startswith("post") for trace in post["trace_ids"])
+        assert pre["case"] == post["case"] == call["case"]
+        assert pre["window_index"] == post["window_index"] == call["window_index"]
+        assert call["a_phase"] == ("pre" if call["window_index"] == 0 else "post")
+        assert call["label"] == ("B" if call["window_index"] == 0 else "A")
+        assert call["task"] == "T1P" and call["informative"] is None
+        assert call["time_aligned"] is True
+        assert call["output_schema"] == t1p_schema()
+        assert "candidates" not in call
+        aligned_pre, aligned_post = align_pair_times(pre["traces"], post["traces"])
+        aligned_a, aligned_b = (
+            (aligned_pre, aligned_post)
+            if call["window_index"] == 0
+            else (aligned_post, aligned_pre)
+        )
+        assert call["user_prompt"] == build_t1p_prompt(
+            SERIALIZERS[call["format"]](aligned_a),
+            SERIALIZERS[call["format"]](aligned_b),
+            windows_config.window_size,
+        )
+    original = runner.build_call_list(windows, replace(config, tasks=["T1", "T2"]))
+    mixed = runner.build_call_list(windows, replace(config, tasks=["T1", "T1P", "T2"]))
+    assert [c for c in mixed if c["task"] != "T1P"] == original
+    assert [c for c in mixed if c["task"] == "T1P"] == calls
+
+
+@pytest.mark.parametrize("missing_phase", ["pre", "post"])
+def test_t1p_builds_only_complete_pairs(local_inputs, missing_phase):
+    _, _, windows_config = local_inputs
+    config = _config(tasks=["T1P"])
+    windows = runner.load_task_windows(config, windows_config)
+    windows = [
+        w
+        for w in windows
+        if not (w["task"] == "T1" and w["phase"] == missing_phase and w["window_index"] == 0)
+    ]
+    calls = runner.build_call_list(windows, config)
+    assert len(calls) == len(config.models) * len(config.formats)
+    assert all(
+        c["window_index"] == 1 and c["a_phase"] == "post" and c["label"] == "A" for c in calls
+    )
+
+
+def test_t1p_no_pair_stops_before_first_chat(local_inputs, monkeypatch):
+    _, _, windows_config = local_inputs
+    monkeypatch.setattr(
+        runner, "load_window_config", lambda path: replace(windows_config, window_size=7)
+    )
+    client = FakeClient()
+    with pytest.raises(ValueError, match="Case 'case'.*no complete T1P pairs"):
+        list(runner.run_tasks(_config(tasks=["T1P"]), client))
+    assert client.calls == []
+
+
+def test_t1p_pair_without_matching_index_is_not_complete():
+    windows = _windows()
+    windows[1]["window_index"] = 1
+    with pytest.raises(ValueError, match="no complete T1P pairs"):
+        runner.build_call_list(windows, _config(tasks=["T1P"]))
+
+
+def test_t1p_asserts_shared_format():
+    windows = _windows()
+    del windows[1]["texts"]["F1"]
+    with pytest.raises(AssertionError):
+        runner.build_call_list(windows, _config(tasks=["T1P"]))
+
+
+def test_t1p_runner_records_resume_and_prompt_length_guard(monkeypatch, fake_inputs):
+    config = _config(tasks=["T1P"], num_ctx=65536)
+    client = FakeClient()
+    records = list(runner.run_tasks(config, client))
+    assert len(records) == len(client.calls) == 4
+    for record, call in zip(records, client.calls, strict=True):
+        assert record["a_phase"] == "pre" and record["label"] == "B"
+        assert record["informative"] is None
+        assert record["num_ctx"] == call["num_ctx"] == 65536
+        assert record["task"] == "T1P" and call["output_schema"] == t1p_schema()
+        assert record["time_aligned"] is True
+        assert record["prompt_sha256"] == runner.prompt_sha256(call["system"], call["user"])
+        assert (
+            not {"system_prompt", "user_prompt", "output_schema", "texts", "trace_ids", "traces"}
+            & record.keys()
+        )
+    done = frozenset(runner.record_key(r) for r in records[:1])
+    resumed = list(runner.run_tasks(config, FakeClient(), done))
+    assert resumed == records[1:]
+    windows = _windows()
+    trace = windows[1]["traces"][0]
+    windows[1]["traces"] = [
+        replace(trace, spans=(replace(trace.spans[0], operation="x" * 150_000),))
+    ]
+    monkeypatch.setattr(runner, "load_task_windows", lambda *args: windows)
+    client = FakeClient()
+    with pytest.raises(ValueError, match="may exceed num_ctx"):
+        list(runner.run_tasks(config, client))
+    assert client.calls == []
+
+
+@pytest.mark.parametrize("fmt", ["F0", "F1"])
+def test_t1p_prompt_windows_share_minimum_start_time(local_inputs, fmt):
+    _, _, windows_config = local_inputs
+    config = _config(tasks=["T1P"], formats=[fmt])
+    windows = runner.load_task_windows(config, windows_config)
+    for call in runner.build_call_list(windows, config):
+        starts = []
+        for letter in ("a", "b"):
+            text = (
+                call["user_prompt"]
+                .split(f"<window_{letter}>\n")[1]
+                .split(f"\n</window_{letter}>")[0]
+            )
+            records = json.loads(text)
+            spans = (
+                records if fmt == "F0" else [span for trace in records for span in trace["spans"]]
+            )
+            starts.append(min(span["startTime"] for span in spans))
+            if fmt == "F0":
+                assert min(span["startTimeMillis"] for span in spans) == starts[-1] // 1000
+        pre, post = runner.pair_t1_windows(windows, "case")[call["window_index"]]
+        anchor = min(t.start_us for w in (pre, post) for t in w["traces"])
+        assert starts == [anchor, anchor]
+
+
+def test_t1_t2_texts_and_calls_match_pre_revision_baseline(local_inputs):
+    _, _, windows_config = local_inputs
+    config = _config(tasks=["T1", "T2"])
+    original_windows = runner.load_task_windows(config, windows_config)
+    paired_config = replace(config, tasks=["T1", "T1P", "T2"])
+    paired_windows = runner.load_task_windows(paired_config, windows_config)
+    original_calls = runner.build_call_list(original_windows, config)
+    paired_calls = [
+        c for c in runner.build_call_list(paired_windows, paired_config) if c["task"] != "T1P"
+    ]
+    assert [w["texts"] for w in original_windows] == [w["texts"] for w in paired_windows]
+    assert paired_calls == original_calls
+
+    def digest(value):
+        return hashlib.sha256(
+            json.dumps(value, ensure_ascii=False, sort_keys=True).encode()
+        ).hexdigest()
+
+    # Captured from this synthetic case before implementing Revision 1.
+    assert digest([w["texts"] for w in original_windows]) == (
+        "32d6720c15fd4dc5b3493221c9cc7a0519201ad8c6aaacbc2e50c7fe637486a9"
+    )
+    assert (
+        digest(original_calls) == "28cc71df89b95441e734ac5b64195be8439e3fc06c4e142b5e148e4252c7b96d"
+    )
+
+
+def test_t1p_pilot_config_matches_spec_without_running_it():
+    root = Path(__file__).parents[1]
+    pilot = runner.TaskConfig(**yaml.safe_load((root / "configs/t1p_pilot.yaml").read_text()))
+    smoke = runner.TaskConfig(**yaml.safe_load((root / "configs/tasks_smoke.yaml").read_text()))
+    assert pilot == replace(
+        smoke, tasks=["T1P"], num_ctx=65536, output="results/t1p_pilot/calls.jsonl"
+    )
 
 
 @pytest.mark.parametrize("mismatch", ["trace", "missing", "extra", "duplicate"])

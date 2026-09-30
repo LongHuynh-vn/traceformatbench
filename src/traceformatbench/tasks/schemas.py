@@ -12,6 +12,15 @@ def t1_schema() -> dict:
     }
 
 
+def t1p_schema() -> dict:
+    return {
+        "type": "object",
+        "properties": {"after": {"type": "string", "enum": ["A", "B"]}},
+        "required": ["after"],
+        "additionalProperties": False,
+    }
+
+
 def t2_schema(candidates: Sequence[str]) -> dict:
     return {
         "type": "object",
