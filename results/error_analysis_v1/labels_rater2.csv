@@ -1,13 +1,13 @@
 item_id,system,format,root_cause_service,answer,contract,habitual,true_rank,top1_is_ancestor,top1_owns_longest_root,root_span_count,root_max_self_ms,reason,note
-E01,tt,F3,ts-route-service,ts-auth-service | ts-config-service | ts-route-service,False,True,3,False,True,3,58.889,,
-E03,tt,F5,ts-auth-service,ts-auth-service | ts-auth-service | ts-auth-service,True,False,1,False,True,18,201.627,,
-E05,ob,F0,recommendationservice,currencyservice | frontendservice | recommendationservice,False,True,3,False,False,2,91.296,,
-E12,ob,F1,productcatalogservice,currencyservice | productcatalogservice | recommendationservice,False,True,2,False,False,8,0.016,,
-E19,tt,F1,ts-travel-service,ts-auth-service | ts-food-map-service | ts-travel-service,False,True,3,False,False,4,202.543,,
-E21,tt,F3,ts-travel-service,ts-auth-service | ts-consign-price-service | ts-food-service,False,True,0,False,True,4,2.806,,
-E31,ob,F0,productcatalogservice,currencyservice | frontendservice | productcatalogservice,False,True,3,False,False,8,0.034,,
-E39,tt,F5,ts-route-service,ts-auth-service | ts-food-service | ts-travel-service,False,True,0,False,True,3,55.28,,
-E40,tt,F0,ts-route-service,ts-auth-service | ts-config-service | ts-admin-basic-info-service,False,True,0,False,True,3,58.889,,
-E43,ob,F2,productcatalogservice,currencyservice | frontendservice | checkoutservice,False,True,0,False,False,14,0.033,,
-E49,ob,F2,currencyservice,recommendationservice | productcatalogservice | currencyservice,False,False,3,False,False,6,0.163,,
-E60,tt,F0,ts-route-service,ts-auth-service | ts-food-service | ts-travel-service,False,True,0,False,False,3,201.298,,
+E01,tt,F3,ts-route-service,ts-auth-service | ts-config-service | ts-route-service,False,True,3,False,True,3,58.889,longest_root,
+E03,tt,F5,ts-auth-service,ts-auth-service | ts-auth-service | ts-auth-service,True,False,1,False,True,18,201.627,unclear,"correct service, invalid answer only"
+E05,ob,F0,recommendationservice,currencyservice | frontendservice | recommendationservice,False,True,3,False,False,2,91.296,unclear,Recommendation has long self-time; currency is off-path.
+E12,ob,F1,productcatalogservice,currencyservice | productcatalogservice | recommendationservice,False,True,2,False,False,8,0.016,weak_signal,
+E19,tt,F1,ts-travel-service,ts-auth-service | ts-food-map-service | ts-travel-service,False,True,3,False,False,4,202.543,unclear,Auth is off-path and not the longest root; travel has long self-time.
+E21,tt,F3,ts-travel-service,ts-auth-service | ts-consign-price-service | ts-food-service,False,True,0,False,True,4,2.806,longest_root,
+E31,ob,F0,productcatalogservice,currencyservice | frontendservice | productcatalogservice,False,True,3,False,False,8,0.034,weak_signal,
+E39,tt,F5,ts-route-service,ts-auth-service | ts-food-service | ts-travel-service,False,True,0,False,True,3,55.28,longest_root,
+E40,tt,F0,ts-route-service,ts-auth-service | ts-config-service | ts-admin-basic-info-service,False,True,0,False,True,3,58.889,longest_root,
+E43,ob,F2,productcatalogservice,currencyservice | frontendservice | checkoutservice,False,True,0,False,False,14,0.033,weak_signal,
+E49,ob,F2,currencyservice,recommendationservice | productcatalogservice | currencyservice,False,False,3,False,False,6,0.163,weak_signal,
+E60,tt,F0,ts-route-service,ts-auth-service | ts-food-service | ts-travel-service,False,True,0,False,False,3,201.298,unclear,Auth is off-path and not the longest root; route has long self-time.
