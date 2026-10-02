@@ -60,6 +60,8 @@ One manual reason per item:
   root-cause path.
 - `weak_signal`: the root-cause service is present but shows nothing unusual in the window (e.g. only short spans).
 - `unclear`: none fits; write a one-line note.
+Contract items whose first listed service is the true root cause (`contract` True and `true_rank` 1): use `unclear`
+with the note `correct service, invalid answer only`. They failed only the answer contract, not the diagnosis.
 Every item also gets a free-text `note` (one short sentence). `habitual` and `contract` are flags, not reasons.
 
 ## Inputs
