@@ -39,7 +39,7 @@ model and format, plus 2-3 concrete examples for the write-up (`06_METHODOLOGY_A
 4. The labeler sees, per item: the prompt rebuilt in the format the model saw, plus the F2 view of the same window for
    easier reading, the true root cause, the model's answer and the automatic flags. The model name is hidden in the
    labeling sheet (kept in a separate key file); the format is visible because the prompt shows it.
-5. Reliability: a second rater (Long) labels 12 items (20%, drawn with the same seed) blind to the first rater's labels.
+5. Reliability: a second rater labels 12 items (20%, drawn with the same seed) blind to the first rater's labels.
    Report raw agreement and Cohen's kappa on those 12.
 
 ## Automatic flags (computed per item from the rebuilt window, not from the text)
