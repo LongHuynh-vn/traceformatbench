@@ -1,0 +1,34 @@
+# Spec 010 error analysis (EXPLORATORY, not pre-registered). No model calls.
+# Sample: uv run python scripts/sample_errors.py configs/error_analysis_v1.yaml
+# Summary (after labeling): uv run python scripts/summarize_errors.py configs/error_analysis_v1.yaml
+# ORDER RULE: commit the sample and CODEBOOK.md before labeling any item.
+seed: 20260930
+scores: results/main_grid/scores.jsonl
+task_config: configs/main_grid.yaml   # prompts are rebuilt with the grid's own code and settings
+models: [qwen3.5:9b, gemma4:12b]
+cell_sizes:                           # per model x format: wrong answers drawn per system
+  F0: {ob: 3, tt: 2}
+  F1: {ob: 2, tt: 3}
+  F2: {ob: 3, tt: 2}
+  F3: {ob: 2, tt: 3}
+  F4: {ob: 3, tt: 2}
+  F5: {ob: 2, tt: 3}
+habitual:
+  ob: currencyservice
+  tt: ts-auth-service
+excluded:                             # the 10 open-reading pilot items (all F0)
+  - {model: qwen3.5:9b, format: F0, case: re2ob_productcatalogservice_socket_1, window_index: 1}
+  - {model: qwen3.5:9b, format: F0, case: re3tt_ts-route-service_f3_1, window_index: 4}
+  - {model: qwen3.5:9b, format: F0, case: re2ob_recommendationservice_disk_1, window_index: 3}
+  - {model: qwen3.5:9b, format: F0, case: re2tt_ts-travel-service_cpu_1, window_index: 2}
+  - {model: qwen3.5:9b, format: F0, case: re2ob_recommendationservice_mem_1, window_index: 0}
+  - {model: gemma4:12b, format: F0, case: re2ob_productcatalogservice_mem_1, window_index: 3}
+  - {model: gemma4:12b, format: F0, case: re2tt_ts-order-service_cpu_1, window_index: 2}
+  - {model: gemma4:12b, format: F0, case: re2ob_recommendationservice_delay_1, window_index: 3}
+  - {model: gemma4:12b, format: F0, case: re2tt_ts-order-service_loss_1, window_index: 2}
+  - {model: gemma4:12b, format: F0, case: re2ob_productcatalogservice_socket_1, window_index: 0}
+rater2_size: 12
+reasons: [caller_blame, longest_root, weak_signal, unclear]
+codebook: configs/error_analysis_v1_codebook.md
+q2: {model: gemma4:12b, format: F2, reference: F0}
+output_dir: results/error_analysis_v1
