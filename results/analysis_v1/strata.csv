@@ -1,0 +1,13 @@
+set,original_stratum,original_n_cases,merged_stratum,merged_n_cases
+T1-all,RE2-OB,30,RE2-OB,30
+T1-all,RE2-TT,29,RE2-TT,29
+T1-all,RE3-OB,10,RE3-OB,10
+T1-all,RE3-TT,8,RE3-TT,8
+T2-all,RE2-OB,30,RE2-OB,30
+T2-all,RE2-TT,30,RE2-TT,30
+T2-all,RE3-OB,6,RE3-OB,6
+T2-all,RE3-TT,8,RE3-TT,8
+T2-informative,RE2-OB,24,RE2-OB,25
+T2-informative,RE2-TT,21,RE2-TT,21
+T2-informative,RE3-OB,1,RE2-OB,25
+T2-informative,RE3-TT,8,RE3-TT,8
