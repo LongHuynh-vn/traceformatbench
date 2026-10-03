@@ -1,0 +1,5 @@
+# Forest plot of the 10 pre-registered main comparisons (rows with is_main in the table).
+# Reads only the saved analysis table; no model calls, no recomputation.
+# Usage: uv run python scripts/plot_main_comparisons.py configs/figures_v1.yaml
+comparisons: results/analysis_v1/comparisons.csv
+output: results/analysis_v1/main_comparisons.png
