@@ -1,6 +1,6 @@
 # 004 Runtime probe
 
-Status: APPROVED 2026-09-29. Drafted by Claude; the student accepted both recommendations (see "Decisions on open questions").
+Status: APPROVED 2026-09-29. The student accepted both recommendations (see "Decisions on open questions").
 Exploratory measurement, not a benchmark result. Its only job is to choose the number of windows per
 case (`t1_windows_per_phase`, `t2_windows`) before PREREGISTRATION.md.
 

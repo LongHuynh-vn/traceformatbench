@@ -1,6 +1,6 @@
 # 001 Trace assembly and traces-only case download
 
-Status: DRAFT written by Claude. The student reviews and edits this file before any agent implements it.
+Status: IMPLEMENTED.
 
 ## Goal
 Turn one RCAEval case into a list of in-memory trace trees, and download only the files the

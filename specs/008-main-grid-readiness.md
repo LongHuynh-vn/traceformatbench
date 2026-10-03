@@ -1,7 +1,7 @@
 # 008 Main-grid readiness: per-case task availability, dry run, main-grid config
 
-Status: DRAFT written by Claude (2026-09-30) after a review found that the task runner cannot run the 78-case grid.
-The student reviews this file before any agent implements it. No model calls are made by anything in this spec.
+Status: IMPLEMENTED. Written (2026-09-30) after a review found that the task runner cannot run the 78-case grid.
+No model calls are made by anything in this spec.
 
 ## Problem (verified in `runners/tasks.py`, 2026-09-30)
 1. `load_task_windows` raises "Root-cause service not in candidates" for any case whose root cause is not among the

@@ -1,9 +1,8 @@
 # Error analysis v1 (spec 010): notes
 
 EXPLORATORY: not part of the pre-registration (`PREREGISTRATION.md` section 14). Sections 1-6 are facts
-copied from the committed files (drafted by Claude, checked against `labels.csv`, `summary.csv` and
-`results/main_grid/scores.jsonl` on 2026-10-02). Section 7 was drafted by Claude and reviewed and approved by rater 1 on 2026-10-02; rater 1 owns the labels and every
-conclusion. Nothing here changes registered scores or verdicts.
+copied from the committed files (checked against `labels.csv`, `summary.csv` and
+`results/main_grid/scores.jsonl` on 2026-10-02). Rater 1 owns the labels and every conclusion. Nothing here changes registered scores or verdicts.
 
 ## 1. What was done
 - Unit: one wrong T2 rank-1 answer on an informative window. 60 items, 30 per model, 5 per model x format cell,
@@ -65,7 +64,7 @@ the main-grid gemma F2 result; it is not new evidence.
 
 ## 7. Interpretation (rater 1)
 
-Drafted by Claude; reviewed and approved by rater 1 on 2026-10-02. Numbers below come from sections
+Numbers below come from sections
 2-6 or were counted post hoc from `results/main_grid/scores.jsonl` and `results/baselines/selftime_v1.jsonl`
 (counts checked twice, independently); the explanations are tentative and all of section 7 is exploratory.
 

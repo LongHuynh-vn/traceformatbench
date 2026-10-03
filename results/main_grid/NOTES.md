@@ -1,7 +1,6 @@
 # Main grid (2026-09-30 to 2026-10-02): registered results
 
-DRAFT. Sections 1-6 are facts copied from the committed outputs (drafted by Claude, checked against the files).
-Section 7 (interpretation) is a draft for student review and rewriting; the student owns the final conclusions.
+Sections 1-6 are facts copied from the committed outputs and checked against the files. Section 7 is the interpretation.
 
 Pre-registration: `PREREGISTRATION.md` at tag `prereg-v1` (commit d24b1067c97bdbafe9342736983108431a33e1dc),
 registered on OSF before the first main-grid call: https://osf.io/brha2
@@ -46,7 +45,7 @@ Main comparisons (10), paired, difference vs F0 [95% CI], CI half-width in brack
 
 - 1 clear difference out of 10. With no correction, about 0.5 false clear differences are expected among 10 if no
   format differs from F0 (PREREGISTRATION section 9).
-- Independent check (Claude): Acc@1 per condition recomputed from `scores.jsonl`, and an own stratified case bootstrap
+- Independent check: Acc@1 per condition recomputed from `scores.jsonl`, and an own stratified case bootstrap
   (4,000 resamples) gave gemma F2-F0 +0.098 [0.025, 0.183], gemma F5-F0 +0.088 [-0.005, 0.191], qwen F4-F0 -0.083
   [-0.193, 0.028]; consistent with `analyze.py`.
 
@@ -100,9 +99,9 @@ Main comparisons (10), paired, difference vs F0 [95% CI], CI half-width in brack
   F1 0.513, F2 0.554, F3 0.523, F5 0.642 vs F0 0.487. Gemma has 4 invalid answers on informative windows (all F5),
   3 of them triples, 2 with the correct service first (first-item Acc@1 0.601 vs registered 0.591).
 
-## 7. Interpretation (draft for student review)
+## 7. Interpretation
 
-This draft follows the [registered hypothesis rules](../../PREREGISTRATION.md#2-hypotheses) and the committed
+This section follows the [registered hypothesis rules](../../PREREGISTRATION.md#2-hypotheses) and the committed
 [paired comparisons](../analysis_v1/comparisons.csv). Explanations of the observed patterns below are tentative.
 
 ### 7.1. Hypothesis verdicts

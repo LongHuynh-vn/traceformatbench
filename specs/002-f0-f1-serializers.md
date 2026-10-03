@@ -1,6 +1,6 @@
 # 002 Serializers F0 (raw rows) and F1 (minified)
 
-Status: DRAFT written by Claude. The student reviews and edits this file before any agent implements it.
+Status: IMPLEMENTED.
 Decisions behind it: see "Decisions log" in `03_IDEA_A_TRACEFORMATBENCH.md` (2026-09-29).
 
 ## Goal

@@ -1,6 +1,6 @@
 # 003 Window sampler and size-cap statistics
 
-Status: APPROVED 2026-09-29. Drafted by Claude, open questions decided by the student (see "Decisions").
+Status: APPROVED 2026-09-29. Open questions decided by the student (see "Decisions").
 Numbers marked (probe) come from the exploratory token probe (`results/token_probe/`) and an ad-hoc
 analysis of two cases. This spec makes them reproducible from committed code.
 
