@@ -4,7 +4,7 @@ When a small local LLM has to find the faulty service in a set of distributed tr
 written into the prompt matter? TraceFormatBench compares six serializations of the same trace windows, from raw span
 JSON to compact per-service summaries, and reports accuracy next to prompt tokens.
 
-The main experiment was pre-registered before the first model call: [`PREREGISTRATION.md`](PREREGISTRATION.md) at tag
+The main experiment was pre-registered before its first model call: [`PREREGISTRATION.md`](PREREGISTRATION.md) at tag
 `prereg-v1`, with a frozen copy on OSF (https://osf.io/brha2). Registered results and exploratory follow-ups are kept
 apart below.
 
@@ -102,7 +102,7 @@ accuracy vs tokens is [`results/analysis_v1/pareto_t2_informative.png`](results/
 them blind (12 of 12 agreement). Full notes: [`results/error_analysis_v1/NOTES.md`](results/error_analysis_v1/NOTES.md),
 design in [spec 010](specs/010-error-analysis.md). Nothing in this section changes the registered results above.
 
-- On TT, most sampled errors name `ts-auth-service`, which owns the longest request in the window (23 of 30 TT items).
+- On TT, most sampled errors name `ts-auth-service`, which owns the longest request in the window (`longest_root`, 23 of 30 TT items).
 - On OB, the true root-cause service is usually present, but its own spans are short (18 of 30 OB items).
 - Both models often put the same service first (`currencyservice` on OB, `ts-auth-service` on TT). These are also the
   most frequent true root causes, so a constant answer would score 0.435 Acc@1, close to F0. This baseline was not
@@ -170,4 +170,8 @@ Built with coding agents. The research question, experiment protocol, metrics an
 agents helped implement components, and every change was reviewed.
 
 ## License
-MIT, see [`LICENSE`](LICENSE). RCAEval data is distributed under its own license and is not included.
+MIT, see [`LICENSE`](LICENSE). Raw RCAEval files are not included. The repository does include data derived from
+RCAEval: trace IDs and labels in [`data/windows/windows_v1.jsonl`](data/windows/windows_v1.jsonl) and serialized
+trace excerpts for 60 windows in [`results/error_analysis_v1/items/`](results/error_analysis_v1/items/). RCAEval
+(Pham et al., WWW Companion 2025) is MIT-licensed per its GitHub README; its Zenodo record
+(DOI 10.5281/zenodo.14590730) lists CC BY 4.0.
