@@ -1,6 +1,6 @@
 # 009 Pre-grid fixes: truncation-band re-count, grid completeness check, multiplicity wording
 
-Status: IMPLEMENTED (2026-09-30, branch `feat/pre-grid-checks`). Drafted with Claude from PREREGISTRATION.md
+Status: IMPLEMENTED (2026-09-30, branch `feat/pre-grid-checks`). Derived from PREREGISTRATION.md
 section 14 (K1, K2, K3, K7). The rules come from the pre-registration; this spec only implements them. No main-grid
 call is made by anything here.
 

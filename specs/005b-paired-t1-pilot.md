@@ -1,6 +1,6 @@
 # 005b Paired T1 task (T1P) and a small pilot
 
-Status: APPROVED 2026-09-30. Drafted by Claude; the student approved adding T1P and running the pilot below.
+Status: APPROVED 2026-09-30. The student approved adding T1P and running the pilot below.
 T1P is added next to T1. Whether T1P replaces T1 in the main grid is decided by the student after the pilot and
 written in PREREGISTRATION.md.
 

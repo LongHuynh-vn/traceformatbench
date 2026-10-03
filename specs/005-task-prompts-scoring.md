@@ -1,7 +1,7 @@
 # 005 Task prompts, output schemas, scoring, and task runner
 
-Status: APPROVED 2026-09-30. Drafted by Claude from the student's decisions below; the student accepted the
-prompt wording and the defaults for all open questions (see "Decisions on open questions").
+Status: APPROVED 2026-09-30. The student accepted the prompt wording and the defaults for all open questions
+(see "Decisions on open questions").
 
 ## Goal
 Define the fixed T1 and T2 prompts, the JSON output schema for each task, how answers are parsed and

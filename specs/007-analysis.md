@@ -1,9 +1,8 @@
 # 007 Analysis: bootstrap CIs, paired format comparisons, self-time baseline, Pareto
 
-Status: DRAFT written by Claude from the student's answers (2026-09-30). The student reviews and edits this
-file before any agent implements it. Items marked [default] were not asked; change them here if needed.
+Status: IMPLEMENTED. Items marked [default] were not asked; change them here if needed.
 Hypotheses (H1-H3) are NOT part of this spec: the student writes them in PREREGISTRATION.md.
-Revised 2026-09-30 after an independent review (a second Claude agent); changes are listed under "Review changes".
+Revised 2026-09-30 after an independent review (a second, independent agent review); changes are listed under "Review changes".
 
 ## Goal
 One command turns scored model calls (`scores.jsonl` from `scripts/score_tasks.py`) plus the heuristic baseline

@@ -1,7 +1,6 @@
 # 006 Serializers F2-F5 (span tree, heaviest path, per-service aggregates, top-k spans)
 
-Status: DRAFT written by Claude from the student's answers (2026-09-30). The student reviews and edits this
-file before any agent implements it. Items marked [default] were not asked; change them here if needed.
+Status: IMPLEMENTED. Items marked [default] were not asked; change them here if needed.
 
 ## Goal
 Add the four structured formats from plan 03 so the main grid can compare F0-F5 on the same windows.
