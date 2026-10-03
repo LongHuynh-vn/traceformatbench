@@ -1,0 +1,12 @@
+# Recompute the main-grid scores, metrics and analysis tables from the committed calls and
+# baseline records, and compare them with the committed files. No model calls; writes only to
+# a temporary directory.
+# Usage: uv run python scripts/verify_results.py configs/verify_v1.yaml
+# Out of scope: the baseline records (they need the RCAEval traces) and the Pareto PNG (bytes
+# depend on the matplotlib build).
+calls: results/main_grid/calls.jsonl
+scores: results/main_grid/scores.jsonl
+metrics: results/main_grid/metrics.csv
+analysis_config: configs/analysis_v1.yaml   # its output_dir holds the committed tables
+float_rtol: 1.0e-9   # bootstrap CI bounds differ in the last digit between macOS and Linux
+float_atol: 1.0e-12

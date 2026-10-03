@@ -18,3 +18,5 @@ jobs:
         run: uv run ruff format --check .
       - name: Tests
         run: uv run pytest -q
+      - name: Verify committed results
+        run: uv run python scripts/verify_results.py configs/verify_v1.yaml
