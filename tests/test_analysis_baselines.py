@@ -220,3 +220,43 @@ def test_baseline_script_writes_synthetic_scored_jsonl(tmp_path, monkeypatch):
     saved = json.loads(output.read_text())
     assert saved["answer"] == ["a", "b", "c"] and saved["hit_at_1"] == 1 / 4
     assert saved["hit_at_3"] == 3 / 4 and saved["seed"] == 7
+
+
+def test_baseline_script_keeps_existing_output_when_scoring_fails(tmp_path, monkeypatch):
+    path = Path(__file__).parents[1] / "scripts" / "run_baseline.py"
+    spec = importlib.util.spec_from_file_location("run_baseline", path)
+    script = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(script)
+    config = tmp_path / "windows_synthetic.yaml"
+    config.write_text(
+        yaml.safe_dump(
+            {
+                "seed": 7,
+                "data_dir": str(tmp_path / "missing"),
+                "datasets": ["RE2-OB"],
+                "repetitions": [1],
+                "window_size": 1,
+                "max_trace_chars": 1000,
+                "guard_seconds": 60,
+                "t1_windows_per_phase": 1,
+                "t2_windows": 1,
+                "output_windows": "unused",
+                "output_stats": str(tmp_path / "results" / "window_stats" / "synthetic.csv"),
+            }
+        )
+    )
+    output = tmp_path / "results" / "baselines" / "selftime_synthetic.jsonl"
+    output.parent.mkdir(parents=True)
+    output.write_text('{"committed": true}\n')
+    trace = Trace("t1", tuple(_span(s, s, 10) for s in ("a", "b", "c", "d")))
+    record = score_window(_window(label="d"), [trace], ["a", "b", "c", "d"], 7)
+
+    def fail_after_first(config):
+        yield record
+        raise FileNotFoundError("Case 'b': traces.parquet was not found.")
+
+    monkeypatch.setattr(script, "run_baseline", fail_after_first)
+    monkeypatch.setattr(sys, "argv", [str(path), str(config)])
+    with pytest.raises(FileNotFoundError, match="traces.parquet"):
+        script.main()
+    assert output.read_text() == '{"committed": true}\n'

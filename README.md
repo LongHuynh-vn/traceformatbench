@@ -145,6 +145,11 @@ uv run python scripts/analyze.py configs/analysis_v1.yaml
 uv run python scripts/check_grid.py configs/main_grid.yaml results/main_grid/calls.jsonl
 ```
 
+To check the committed results without the raw traces or a model:
+`uv run python scripts/verify_results.py configs/verify_v1.yaml`. It recomputes the main-grid scores, metrics and
+analysis tables from the committed calls and baseline records in a temporary directory and compares them with the
+committed files.
+
 Re-running the model calls needs Ollama 0.35.0 with `qwen3.5:9b` and `gemma4:12b` pulled. The original run took
 7.80 h of model time for qwen3.5:9b and 12.88 h for gemma4:12b on the hardware above:
 
@@ -153,7 +158,8 @@ uv run python scripts/run_tasks.py configs/main_grid.yaml --dry-run   # list the
 uv run python scripts/run_tasks.py configs/main_grid.yaml
 ```
 
-The exploratory error analysis: `uv run python scripts/summarize_errors.py configs/error_analysis_v1.yaml`.
+The exploratory error analysis: `uv run python scripts/summarize_errors.py configs/error_analysis_v1.yaml`. The
+constant-answer reference (0.435): `uv run python scripts/constant_answer.py configs/error_analysis_v1.yaml`.
 
 ## Repository layout
 ```
