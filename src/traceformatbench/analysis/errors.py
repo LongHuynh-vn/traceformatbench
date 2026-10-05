@@ -320,6 +320,32 @@ def q2_counts(records: Sequence[Mapping], model: str, fmt: str, reference: str) 
     }
 
 
+def constant_answer_counts(
+    records: Sequence[Mapping], habitual: Mapping[str, str]
+) -> dict[str, dict[str, int]]:
+    """Rank-1 hits of always naming the system's habitual service, per system and in total.
+
+    Post hoc reference, not registered. Each informative T2 window counts once, however many
+    model x format records it has.
+    """
+    windows: dict[tuple, tuple[str, str]] = {}
+    for r in records:
+        if r["task"] == "T2" and r["informative"] is True:
+            if r["system"] not in habitual:
+                raise ValueError(f"No habitual service for system {r['system']!r}.")
+            key = (r["case"], r["window_index"])
+            if windows.setdefault(key, (r["system"], r["label"])) != (r["system"], r["label"]):
+                raise ValueError(f"Window {key!r} has different systems or labels across records.")
+    if not windows:
+        raise ValueError("No informative T2 windows in the scores.")
+    counts = {system: {"hits": 0, "windows": 0} for system in habitual}
+    for system, label in windows.values():
+        counts[system]["hits"] += label == habitual[system]
+        counts[system]["windows"] += 1
+    counts["all"] = {name: sum(c[name] for c in counts.values()) for name in ("hits", "windows")}
+    return counts
+
+
 def read_labels(path: str | Path, reasons: Sequence[str]) -> dict[str, str]:
     """item_id -> reason ('' when unlabeled); unknown reasons are an error."""
     with Path(path).open(encoding="utf-8", newline="") as stream:

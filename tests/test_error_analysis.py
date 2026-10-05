@@ -1,9 +1,14 @@
 """Spec 010 on synthetic records and traces; the real-data hash check is a dry run on the Mac."""
 
+import dataclasses
+import importlib.util
 import json
 import math
+import sys
+from pathlib import Path
 
 import pytest
+import yaml
 
 from traceformatbench.analysis import errors
 from traceformatbench.data.trace import Span, Trace
@@ -204,6 +209,70 @@ def test_q2_counts():
         "F0_right_F1_wrong": 1,
         "n_windows": 4,
     }
+
+
+def test_constant_answer_counts_each_informative_t2_window_once():
+    habitual = {"ob": "hab_ob", "tt": "hab_tt"}
+    records = [
+        # One window, three model x format records: counted once.
+        _record("m1", "F0", "ob", "ob_a", 0, label="hab_ob"),
+        _record("m1", "F1", "ob", "ob_a", 0, label="hab_ob"),
+        _record("m2", "F0", "ob", "ob_a", 0, label="hab_ob"),
+        _record("m1", "F0", "ob", "ob_a", 1, label="db"),
+        _record("m1", "F0", "ob", "ob_b", 0, label="db"),
+        _record("m1", "F0", "tt", "tt_a", 0, label="hab_tt"),
+        # Left out: another system's habitual service, not informative, T1.
+        _record("m1", "F0", "tt", "tt_a", 1, label="hab_ob"),
+        _record("m1", "F0", "tt", "tt_b", 0, label="hab_tt", informative=False),
+        _record("m1", "F0", "tt", "tt_b", 1, label="post", informative=None, task="T1"),
+    ]
+    assert errors.constant_answer_counts(records, habitual) == {
+        "ob": {"hits": 1, "windows": 3},
+        "tt": {"hits": 1, "windows": 2},
+        "all": {"hits": 2, "windows": 5},
+    }
+
+
+def test_constant_answer_counts_rejects_inconsistent_or_empty_input():
+    habitual = {"ob": "hab_ob", "tt": "hab_tt"}
+    with pytest.raises(ValueError, match="different systems or labels"):
+        errors.constant_answer_counts(
+            [
+                _record("m1", "F0", "ob", "ob_a", 0, label="hab_ob"),
+                _record("m2", "F0", "ob", "ob_a", 0, label="db"),
+            ],
+            habitual,
+        )
+    with pytest.raises(ValueError, match="No habitual service"):
+        errors.constant_answer_counts([_record("m1", "F0", "xx", "xx_a", 0, label="db")], habitual)
+    with pytest.raises(ValueError, match="No informative T2 windows"):
+        errors.constant_answer_counts(
+            [_record("m1", "F0", "ob", "ob_a", 0, label="db", informative=False)], habitual
+        )
+
+
+def test_constant_answer_script_prints_counts(tmp_path, monkeypatch, capsys):
+    path = Path(__file__).parents[1] / "scripts" / "constant_answer.py"
+    spec = importlib.util.spec_from_file_location("constant_answer", path)
+    script = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(script)
+    config = tmp_path / "error_analysis.yaml"
+    config.write_text(yaml.safe_dump(dataclasses.asdict(_config(tmp_path))), encoding="utf-8")
+    records = [
+        _record("m1", "F0", "ob", "ob_a", 0, label="hab_ob"),
+        _record("m1", "F0", "ob", "ob_a", 1, label="db"),
+        _record("m1", "F0", "ob", "ob_b", 0, label="db"),
+    ]
+    (tmp_path / "scores.jsonl").write_text(
+        "".join(json.dumps(r) + "\n" for r in records), encoding="utf-8"
+    )
+    monkeypatch.setattr(sys, "argv", [str(path), str(config)])
+    script.main()
+    assert capsys.readouterr().out.splitlines()[1:] == [
+        "  ob, always hab_ob: 1 of 3 = 0.333",
+        "  tt, always hab_tt: 0 of 0",
+        "  all: 1 of 3 = 0.333",
+    ]
 
 
 def _write_sample(config, tmp_path):
