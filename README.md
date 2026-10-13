@@ -159,7 +159,8 @@ uv run python scripts/run_tasks.py configs/main_grid.yaml
 ```
 
 The exploratory error analysis: `uv run python scripts/summarize_errors.py configs/error_analysis_v1.yaml`. The
-constant-answer reference (0.435): `uv run python scripts/constant_answer.py configs/error_analysis_v1.yaml`.
+constant-answer reference (0.435): `uv run python scripts/constant_answer.py configs/error_analysis_v1.yaml`. The
+model times (7.80 h, 12.88 h): `uv run python scripts/model_time.py configs/model_time_v1.yaml`.
 
 ## Repository layout
 ```

@@ -1,0 +1,6 @@
+# Summed per-call model time per model (sum of total_s over the saved main-grid calls), in hours, with a
+# cross-check against the summary table. Not wall-clock time. No model calls.
+# Usage: uv run python scripts/model_time.py configs/model_time_v1.yaml
+calls: results/main_grid/calls.jsonl
+summary: results/analysis_v1/summary.csv
+tolerance_h: 0.001
