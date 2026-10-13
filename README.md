@@ -4,7 +4,7 @@ When a small local LLM has to find the faulty service in a set of distributed tr
 written into the prompt matter? TraceFormatBench compares six serializations of the same trace windows, from raw span
 JSON to compact per-service summaries, and reports accuracy next to prompt tokens.
 
-The main experiment was pre-registered before its first model call: [`PREREGISTRATION.md`](PREREGISTRATION.md) at tag
+The main experiment was registered before the first main-grid call: [`PREREGISTRATION.md`](PREREGISTRATION.md) at tag
 `prereg-v1`, with a frozen copy on OSF (https://osf.io/brha2). Registered results and exploratory follow-ups are kept
 apart below.
 
@@ -179,6 +179,6 @@ agents helped implement components, and every change was reviewed.
 ## License
 MIT, see [`LICENSE`](LICENSE). Raw RCAEval files are not included. The repository does include data derived from
 RCAEval: trace IDs and labels in [`data/windows/windows_v1.jsonl`](data/windows/windows_v1.jsonl) and serialized
-trace excerpts for 60 windows in [`results/error_analysis_v1/items/`](results/error_analysis_v1/items/). RCAEval
+trace excerpts for 60 items across 50 windows in [`results/error_analysis_v1/items/`](results/error_analysis_v1/items/). RCAEval
 (Pham et al., WWW Companion 2025) is MIT-licensed per its GitHub README; its Zenodo record
 (DOI 10.5281/zenodo.14590730) lists CC BY 4.0.
