@@ -43,8 +43,8 @@ Main comparisons (10), paired, difference vs F0 [95% CI], CI half-width in brack
 | F4 | -0.083 [-0.192, 0.030] (0.111) | -0.041 [-0.145, 0.064] (0.104) |
 | F5 | +0.031 [-0.094, 0.161] (0.128) | +0.088 [-0.005, 0.193] (0.099) |
 
-- 1 clear difference out of 10. With no correction, about 0.5 false clear differences are expected among 10 if no
-  format differs from F0 (PREREGISTRATION section 9).
+- 1 clear difference out of 10. Under the complete null and calibrated 5% individual error rates, the expected
+  count of false clear differences is 0.5 (PREREGISTRATION section 9); independence is not needed for this expectation.
 - Independent check: Acc@1 per condition recomputed from `scores.jsonl`, and an own stratified case bootstrap
   (4,000 resamples) gave gemma F2-F0 +0.098 [0.025, 0.183], gemma F5-F0 +0.088 [-0.005, 0.191], qwen F4-F0 -0.083
   [-0.193, 0.028]; consistent with `analyze.py`.
@@ -57,9 +57,13 @@ Main comparisons (10), paired, difference vs F0 [95% CI], CI half-width in brack
   F1, F2, F3 have opposite signs (qwen negative, gemma positive).
 - H3 (descriptive, cost): see section 5.
 
-## 4. Secondary and robustness views (registered, reported next to the primary)
-- Every LLM condition, F0 included, is clearly better than the self-time baseline on T2 Acc@1, on informative and on
-  all windows (24 of 24 comparisons).
+## 4. Secondary and robustness views (pre-specified, exploratory)
+The registration separates the 10 primary comparisons in section 2 from 40 exploratory secondary format comparisons
+and 24 exploratory baseline comparisons. These pre-specified views are reported next to the primary results; the
+post hoc analyses in section 6 form a separate category.
+
+- In the 24 pre-specified, exploratory comparisons against the self-time baseline (12 model-format conditions on
+  each of the T2-informative and T2-all sets), every paired difference is positive and its 95% CI excludes zero.
 - All 370 T2 windows (74 cases), Acc@1 vs F0: gemma F2 +0.051 [0.011, 0.097] clear; the other 9 not clear.
 - Acc@3 vs F0, informative: gemma F2 +0.057 [0.015, 0.102] clear; the other 9 not clear.
   Acc@3 vs F0, all windows: gemma F2 +0.027 [0.003, 0.054] clear; qwen F2 -0.076 [-0.127, -0.024] and qwen F4 -0.059
@@ -85,16 +89,20 @@ Main comparisons (10), paired, difference vs F0 [95% CI], CI half-width in brack
 - Prompt tokens: F0 9,390 (qwen) / 9,631 (gemma); F4 331 / 369; F5 552 / 588; i.e. F4/F5 use 16-28x fewer prompt
   tokens than F0.
 - Time: F0 27.7 s (qwen) / 45.9 s (gemma); F4 1.8 s / 3.4 s; F5 2.3 s / 3.5 s; i.e. 12-15x faster than F0.
-- `tokens_reliable` is False in every row because some calls had small prefix-cache hits (at most 53 tokens, mostly
-  the shared system prompt). Evidence that `prompt_eval_count` still counts the whole prompt: a band re-count after a
-  model reload (no cache) gave 16,396, equal to the original count of 16,396 that had 21 cached tokens. The token means
-  are therefore reported, with this note.
-- Pareto plot: `results/analysis_v1/pareto_t2_informative.png`.
+- `tokens_reliable` is False in every informative LLM row because some calls had small prefix-cache hits (at most
+  53 tokens, mostly the shared system prompt). The flag applies to the entire `(model, format, task)` condition:
+  cached or truncated calls can trigger it outside the selected analysis set. Cached calls remain in token means;
+  truncated calls are excluded. Every saved main-grid call has status `ok`, so the flag is not evidence of truncation.
+  A band re-count after a model reload (no cache) gave 16,396, equal to the original count of 16,396 that had 21 cached
+  tokens. This supports that particular request's count; it does not certify every count or condition mean. The
+  token means remain reported with their reliability flags.
+- Pareto plot: `results/analysis_v1/pareto_t2_informative.png`; `!` marks this condition-wide reliability flag.
 
 ## 6. Exploratory (NOT registered; labeled as such wherever used)
 - Every qwen invalid T2 answer on informative windows in F1, F2 and F3 (13, 19 and 16) lists one service three times,
-  and that service is the correct one. In F5, 26 of the 27 invalid answers are such triples and 24 of 27 have the
-  correct service first. The registered rule scores all of these 0, so the primary result above is unchanged.
+  and that service is the correct one. In F5, 26 of the 27 invalid responses repeat one service three times;
+  23 repeat the correct service. Including the remaining non-triple response, 24 invalid responses put the correct
+  service first. The registered rule scores all of these 0, so the primary result above is unchanged.
 - If the first item of such an answer were scored (not the registered rule), qwen Acc@1 on informative windows would be
   F1 0.513, F2 0.554, F3 0.523, F5 0.642 vs F0 0.487. Gemma has 4 invalid answers on informative windows (all F5),
   3 of them triples, 2 with the correct service first (first-item Acc@1 0.601 vs registered 0.591).
@@ -182,9 +190,10 @@ F4/F5 use substantially fewer prompt tokens and have shorter measured calls than
 descriptive result even though H1a is not supported. However, a CI that includes zero does not establish preserved
 accuracy, so these reductions cannot be described as free compression or equal accuracy at lower cost.
 
-Every model/format condition beats the registered self-time heuristic on T2 Acc@1 under the reported comparison
-rule. This supports a benefit over that baseline in this dataset, without establishing general causal reasoning. F4/F5 already
-expose engineered self-time information to the model, which narrows what their baseline comparison demonstrates.
+Every model/format condition beats the registered self-time heuristic on T2 Acc@1 in the pre-specified, exploratory
+baseline comparisons. This supports a benefit over that baseline in this dataset, without establishing general
+causal reasoning. F4/F5 already expose engineered self-time information to the model, which narrows what their
+baseline comparison demonstrates.
 The token counts remain subject to the cache-reliability qualification in section 5, and the timings describe this
 local runtime and hardware. There is no token-budget sweep or measurement of deployment-wide monetary cost.
 

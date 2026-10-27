@@ -86,16 +86,27 @@ Mean prompt tokens per T2 call on the same windows (same source file):
 What the registered rules give ([`results/main_grid/NOTES.md`](results/main_grid/NOTES.md), sections 2 to 5):
 
 - **1 of 10** format-vs-F0 comparisons is a clear difference: gemma F2, +9.8 points. With 10 unadjusted comparisons,
-  about 0.5 false clear differences are expected if no format differs from F0.
+  an expected 0.5 false clear differences assumes the complete null and calibrated 5% individual error rates.
 - **H1a** (F3, F4, F5 beat F0) is not supported: 0 of 6 cells.
 - **H1b** (F1, F2 show no clear difference from F0) does not hold as a whole: gemma F2 is the exception.
-- **Every** model and format beats the self-time baseline (24 of 24 comparisons).
-- **F4 and F5** use 16 to 28 times fewer prompt tokens than F0, with no clear loss or gain in Acc@1.
-- **T1** stays near chance for every condition (accuracy 0.474 to 0.539).
+- In the **24 pre-specified, exploratory** comparisons against the self-time baseline (12 model-format conditions
+  on each of the T2-informative and T2-all sets), every paired difference is positive and its 95% CI excludes zero.
+- **F4 and F5** use 16 to 28 times fewer reported prompt tokens than F0. Their primary Acc@1 intervals include zero
+  and do not establish preserved accuracy.
+- **T1** accuracy ranges from 0.474 to 0.539; every interval includes 0.5.
 
 A "no clear difference" result means the CI includes 0. It does not show that two formats are equivalent. Per-system
 results (OB vs TT) are in [`results/main_grid/metrics.csv`](results/main_grid/metrics.csv). The Pareto plot of
 accuracy vs tokens is [`results/analysis_v1/pareto_t2_informative.png`](results/analysis_v1/pareto_t2_informative.png).
+The registration distinguishes 10 primary comparisons from 40 exploratory secondary format comparisons and 24
+exploratory baseline comparisons; pre-specification does not make the latter confirmatory. Post hoc analyses are
+reported separately below.
+
+All informative LLM rows have `tokens_reliable=false`. This flag, shown as `!` in the Pareto plot, applies to the
+whole `(model, format, task)` condition: a cached or truncated call anywhere in that condition can trigger it, even
+outside the selected analysis set. Cached calls remain in token means; truncated calls are excluded. All saved
+main-grid call statuses are `ok`, so these flags do not establish truncation. See
+[`results/main_grid/NOTES.md`](results/main_grid/NOTES.md), section 5, for the cache-count qualification.
 
 ## Error analysis (exploratory, not pre-registered)
 60 wrong T2 answers (5 per model and format) were labeled by hand with a fixed codebook; a second rater labeled 12 of
@@ -130,7 +141,7 @@ Requires [uv](https://docs.astral.sh/uv/). The analysis steps need no model and 
 step 2 also reads the RCAEval traces, which step 1 downloads.
 
 ```
-uv sync
+uv sync --locked
 uv run pytest
 
 # 1. Build the fixed windows (downloads the needed RCAEval traces)
@@ -145,10 +156,22 @@ uv run python scripts/analyze.py configs/analysis_v1.yaml
 uv run python scripts/check_grid.py configs/main_grid.yaml results/main_grid/calls.jsonl
 ```
 
+Rebuilding byte-identical windows requires the same source bytes, configuration and software behavior. The current
+downloader does not pin the upstream revision or validate already-cached files, so the same YAML alone is insufficient.
+
 To check the committed results without the raw traces or a model:
 `uv run python scripts/verify_results.py configs/verify_v1.yaml`. It recomputes the main-grid scores, metrics and
 analysis tables from the committed calls and baseline records in a temporary directory and compares them with the
-committed files.
+committed files. Its five checks cover 6,288 score records and four tables: `metrics.csv` (72 rows), `summary.csv`
+(68), `comparisons.csv` (74), and `strata.csv` (12). It does not rerun inference, reconstruct the source dataset or
+windows, regenerate the baseline from traces, or verify manuscript prose, tables or figures. It also does not
+validate prompt hashes, expected model digests, runtime versions or termination reasons. The separate grid check
+above uses local traces to rebuild planned calls and compare their keys, including prompt hashes and generation
+settings; it does not establish source-byte provenance or authenticate recorded model builds.
+
+Generate the paper figure separately from the committed analysis tables:
+`uv run python scripts/plot_paper_figure.py configs/paper_figure_v1.yaml`. Figure regeneration is outside the five
+saved-result checks.
 
 Re-running the model calls needs Ollama 0.35.0 with `qwen3.5:9b` and `gemma4:12b` pulled. The original run took
 7.80 h of model time for qwen3.5:9b and 12.88 h for gemma4:12b on the hardware above:
@@ -161,6 +184,10 @@ uv run python scripts/run_tasks.py configs/main_grid.yaml
 The exploratory error analysis: `uv run python scripts/summarize_errors.py configs/error_analysis_v1.yaml`. The
 constant-answer reference (0.435): `uv run python scripts/constant_answer.py configs/error_analysis_v1.yaml`. The
 model times (7.80 h, 12.88 h): `uv run python scripts/model_time.py configs/model_time_v1.yaml`.
+
+To add a serializer, configure another local model, or implement another backend, see
+[`docs/extending.md`](docs/extending.md). It includes a small offline example and explains how to keep added
+conditions separate from the registered grid.
 
 ## Repository layout
 ```
