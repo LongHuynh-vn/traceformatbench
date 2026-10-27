@@ -4,7 +4,8 @@ Usage:
     uv run python scripts/build_windows.py configs/windows_v1.yaml
 
 Downloads missing cases (traces and injection time only) and processes one case at a time.
-The same config always produces a byte-identical windows file.
+Byte-identical windows require the same source bytes, configuration and software behavior.
+The configuration alone does not pin upstream downloads or validate cached source files.
 """
 
 from __future__ import annotations

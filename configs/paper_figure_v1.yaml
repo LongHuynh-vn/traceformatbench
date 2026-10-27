@@ -1,0 +1,98 @@
+# Saved-data presentation only; separate from verify_results.py.
+comparisons: results/analysis_v1/comparisons.csv
+summary: results/analysis_v1/summary.csv
+output_pdf: results/analysis_v1/fig_forest.pdf
+output_png: results/analysis_v1/fig_forest.png
+provenance: results/analysis_v1/fig_forest.provenance.json
+data:
+  models: ["qwen3.5:9b", "gemma4:12b"]
+  formats: [F1, F2, F3, F4, F5]
+  reference_format: F0
+  task: T2
+  set: T2-informative
+  metric: acc_at_1
+  n_windows: 193
+  n_cases: 54
+font:
+  bundled_file: STIXGeneral.ttf
+  sha256: 167378031e2dddc6216d67819c9260e9a06ffc4c478e4e23cb98a6fd44b183c2
+style:
+  size_inches: [3.487, 2.05]
+  axes_bounds: [0.17, 0.245, 0.56, 0.625]
+  font_size: 8
+  dpi: 300
+  xlim: [-0.21, 0.21]
+  xticks: [-0.2, -0.1, 0, 0.1, 0.2]
+  xticklabels: ["−0.2", "−0.1", "0", "0.1", "0.2"]
+  xlabel: "Acc@1 difference vs. F0 (95% CI)"
+  xlabel_pad: 2
+  row_labels: [qwen, gemma]
+  model_gap: 0.6
+  row_margin: 0.6
+  markers: [o, s]
+  colors: ["#0072B2", "#D55E00"]
+  marker_size: 4.5
+  marker_edge_width: 0.8
+  ci_width: 1.0
+  cap_size: 2.0
+  zero_color: "#777777"
+  zero_width: 0.6
+  zero_dashes: [3, 3]
+  token_column_x: 0.875
+  token_heading_y: 0.985
+  token_heading: "fewer prompt\ntokens than F0"
+  token_linespacing: 1.0
+  ratio_integer_threshold: 10
+  ratio_suffix: "×"
+  unreliable_suffix: "!"
+  text_color: "#111111"
+  rc:
+    font.family: serif
+    font.size: 8
+    text.usetex: false
+    text.parse_math: false
+    text.antialiased: true
+    axes.unicode_minus: true
+    axes.grid: false
+    axes.linewidth: 0.6
+    axes.edgecolor: "#111111"
+    axes.facecolor: white
+    figure.facecolor: white
+    figure.edgecolor: white
+    figure.autolayout: false
+    figure.constrained_layout.use: false
+    lines.antialiased: true
+    lines.solid_capstyle: butt
+    xtick.direction: out
+    xtick.major.size: 2
+    xtick.major.width: 0.6
+    xtick.major.pad: 2
+    xtick.minor.visible: false
+    xtick.top: false
+    xtick.bottom: true
+    xtick.labeltop: false
+    xtick.labelbottom: true
+    ytick.major.size: 0
+    ytick.major.pad: 3
+    ytick.minor.visible: false
+    ytick.right: false
+    ytick.left: true
+    ytick.labelright: false
+    ytick.labelleft: true
+    savefig.bbox: null
+    savefig.transparent: false
+    savefig.facecolor: white
+    savefig.edgecolor: white
+    pdf.fonttype: 42
+    pdf.use14corefonts: false
+    pdf.compression: 6
+    path.simplify: false
+metadata:
+  Title: "T2 informative paired comparisons against F0"
+  Author: null
+  Subject: "Saved comparison intervals and within-model prompt-token ratios"
+  Keywords: null
+  Creator: "TraceFormatBench paper figure"
+  Producer: "Matplotlib"
+  CreationDate: null
+  ModDate: null
